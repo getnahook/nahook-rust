@@ -9,6 +9,7 @@ use crate::resources::portal_sessions::PortalSessionsResource;
 use crate::resources::subscriptions::SubscriptionsResource;
 
 /// Builder for constructing a [`NahookManagement`] client with custom configuration.
+#[must_use]
 pub struct NahookManagementBuilder {
     token: String,
     base_url: Option<String>,

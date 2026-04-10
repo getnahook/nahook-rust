@@ -5,6 +5,7 @@ use crate::http_client::{encode_path_segment, HttpClient, HttpClientConfig, Meth
 use crate::types::*;
 
 /// Builder for constructing a [`NahookClient`] with custom configuration.
+#[must_use]
 pub struct NahookClientBuilder {
     api_key: String,
     base_url: Option<String>,

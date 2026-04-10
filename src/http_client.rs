@@ -74,13 +74,13 @@ impl HttpClient {
         let response = self.execute_with_retry(method, path, body).await?;
 
         if response.status().as_u16() == 204 {
-            // For 204 No Content, try to return a default/empty value
-            let text = "";
-            return serde_json::from_str(text).map_err(|_| {
+            // For 204 No Content, return deserialized "null" which works for Option<T> types.
+            // If the caller expects a non-optional type, this will produce a clear serde error.
+            return serde_json::from_str("null").map_err(|e| {
                 NahookError::Api(ApiError {
                     status: 204,
                     code: "no_content".to_string(),
-                    message: "No content".to_string(),
+                    message: format!("Cannot deserialize 204 No Content response: {e}"),
                     retry_after: None,
                 })
             });
