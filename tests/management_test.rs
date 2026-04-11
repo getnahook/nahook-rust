@@ -19,7 +19,7 @@ fn client_rejects_invalid_api_key() {
 
 #[test]
 fn client_accepts_valid_api_key() {
-    let result = NahookClient::builder("nhk_test123")
+    let result = NahookClient::builder("nhk_us_test123")
         .base_url("https://localhost:1234")
         .build();
     assert!(result.is_ok());
@@ -52,7 +52,7 @@ async fn client_send_calls_correct_endpoint() {
 
     Mock::given(method("POST"))
         .and(path("/api/ingest/ep_123"))
-        .and(header("authorization", "Bearer nhk_test123"))
+        .and(header("authorization", "Bearer nhk_us_test123"))
         .and(header("accept", "application/json"))
         .and(header("content-type", "application/json"))
         .respond_with(ResponseTemplate::new(202).set_body_json(json!({
@@ -64,7 +64,7 @@ async fn client_send_calls_correct_endpoint() {
         .mount(&server)
         .await;
 
-    let client = NahookClient::builder("nhk_test123")
+    let client = NahookClient::builder("nhk_us_test123")
         .base_url(server.uri())
         .build()
         .unwrap();
@@ -100,7 +100,7 @@ async fn client_send_auto_generates_idempotency_key() {
         .mount(&server)
         .await;
 
-    let client = NahookClient::builder("nhk_test123")
+    let client = NahookClient::builder("nhk_us_test123")
         .base_url(server.uri())
         .build()
         .unwrap();
@@ -127,7 +127,7 @@ async fn client_trigger_calls_correct_endpoint() {
 
     Mock::given(method("POST"))
         .and(path("/api/ingest/event/order.paid"))
-        .and(header("authorization", "Bearer nhk_test123"))
+        .and(header("authorization", "Bearer nhk_us_test123"))
         .respond_with(ResponseTemplate::new(202).set_body_json(json!({
             "eventTypeId": "evt_abc",
             "deliveryIds": ["del_1", "del_2"],
@@ -137,7 +137,7 @@ async fn client_trigger_calls_correct_endpoint() {
         .mount(&server)
         .await;
 
-    let client = NahookClient::builder("nhk_test123")
+    let client = NahookClient::builder("nhk_us_test123")
         .base_url(server.uri())
         .build()
         .unwrap();
@@ -177,7 +177,7 @@ async fn client_send_batch_calls_correct_endpoint() {
         .mount(&server)
         .await;
 
-    let client = NahookClient::builder("nhk_test123")
+    let client = NahookClient::builder("nhk_us_test123")
         .base_url(server.uri())
         .build()
         .unwrap();
@@ -216,7 +216,7 @@ async fn client_trigger_batch_calls_correct_endpoint() {
         .mount(&server)
         .await;
 
-    let client = NahookClient::builder("nhk_test123")
+    let client = NahookClient::builder("nhk_us_test123")
         .base_url(server.uri())
         .build()
         .unwrap();
@@ -255,7 +255,7 @@ async fn client_returns_api_error_on_404() {
         .mount(&server)
         .await;
 
-    let client = NahookClient::builder("nhk_test123")
+    let client = NahookClient::builder("nhk_us_test123")
         .base_url(server.uri())
         .build()
         .unwrap();
@@ -303,7 +303,7 @@ async fn client_returns_api_error_on_429() {
         .mount(&server)
         .await;
 
-    let client = NahookClient::builder("nhk_test123")
+    let client = NahookClient::builder("nhk_us_test123")
         .base_url(server.uri())
         .build()
         .unwrap();
