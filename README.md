@@ -37,7 +37,7 @@ use nahook::types::SendOptions;
 
 #[tokio::main]
 async fn main() -> Result<(), nahook::NahookError> {
-    let client = NahookClient::new("nhk_your_api_key")?;
+    let client = NahookClient::new("nhk_us_your_api_key")?;
 
     // Send to a specific endpoint
     let result = client.send("ep_abc123", SendOptions {
@@ -61,7 +61,7 @@ use nahook::types::TriggerOptions;
 
 #[tokio::main]
 async fn main() -> Result<(), nahook::NahookError> {
-    let client = NahookClient::new("nhk_your_api_key")?;
+    let client = NahookClient::new("nhk_us_your_api_key")?;
 
     let result = client.trigger("order.paid", TriggerOptions {
         payload: serde_json::json!({"order_id": "ord_123"}),
@@ -81,7 +81,7 @@ use nahook::types::{SendBatchItem, TriggerBatchItem};
 
 #[tokio::main]
 async fn main() -> Result<(), nahook::NahookError> {
-    let client = NahookClient::new("nhk_your_api_key")?;
+    let client = NahookClient::new("nhk_us_your_api_key")?;
 
     // Batch send to specific endpoints
     let result = client.send_batch(vec![
@@ -119,7 +119,7 @@ async fn main() -> Result<(), nahook::NahookError> {
 use std::time::Duration;
 use nahook::NahookClient;
 
-let client = NahookClient::builder("nhk_your_api_key")
+let client = NahookClient::builder("nhk_us_your_api_key")
     .base_url("https://api.nahook.com")
     .timeout(Duration::from_secs(15))
     .retries(3)

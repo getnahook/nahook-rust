@@ -16,7 +16,7 @@
 //! use nahook::types::SendOptions;
 //!
 //! # async fn example() -> Result<(), nahook::NahookError> {
-//! let client = NahookClient::new("nhk_your_api_key")?;
+//! let client = NahookClient::new("nhk_us_your_api_key")?;
 //! let result = client.send("ep_abc123", SendOptions {
 //!     payload: serde_json::json!({"event": "order.paid"}),
 //!     idempotency_key: None,
