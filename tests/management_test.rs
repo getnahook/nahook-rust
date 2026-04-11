@@ -715,8 +715,8 @@ async fn management_subscriptions_list() {
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([
             {
                 "id": "sub_123",
-                "endpointId": "ep_abc",
                 "eventTypeId": "evt_order",
+                "eventTypeName": "order.created",
                 "createdAt": "2024-01-01T00:00:00Z"
             }
         ])))
@@ -736,7 +736,8 @@ async fn management_subscriptions_list() {
         .unwrap();
 
     assert_eq!(result.data.len(), 1);
-    assert_eq!(result.data[0].endpoint_id, "ep_abc");
+    assert_eq!(result.data[0].event_type_id, "evt_order");
+    assert_eq!(result.data[0].event_type_name, "order.created");
 }
 
 #[tokio::test]
@@ -748,13 +749,10 @@ async fn management_subscriptions_create() {
             "/management/v1/workspaces/ws_123/endpoints/ep_abc/subscriptions",
         ))
         .and(body_json(json!({
-            "eventTypeId": "evt_order"
+            "eventTypeIds": ["evt_order"]
         })))
-        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
-            "id": "sub_new",
-            "endpointId": "ep_abc",
-            "eventTypeId": "evt_order",
-            "createdAt": "2024-01-01T00:00:00Z"
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "subscribed": 1
         })))
         .expect(1)
         .mount(&server)
@@ -771,13 +769,13 @@ async fn management_subscriptions_create() {
             "ws_123",
             "ep_abc",
             CreateSubscriptionOptions {
-                event_type_id: "evt_order".to_string(),
+                event_type_ids: vec!["evt_order".to_string()],
             },
         )
         .await
         .unwrap();
 
-    assert_eq!(result.event_type_id, "evt_order");
+    assert_eq!(result.subscribed, 1);
 }
 
 #[tokio::test]

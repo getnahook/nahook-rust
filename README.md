@@ -163,7 +163,7 @@ async fn main() -> Result<(), nahook::NahookError> {
 
     // Subscribe endpoint to event type
     let sub = mgmt.subscriptions().create("ws_abc123", &new_ep.id, CreateSubscriptionOptions {
-        event_type_id: evt.id.clone(),
+        event_type_ids: vec![evt.id.clone()],
     }).await?;
 
     // Create application and portal session

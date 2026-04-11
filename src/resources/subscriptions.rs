@@ -23,13 +23,13 @@ impl<'a> SubscriptionsResource<'a> {
         Ok(ListResult { data })
     }
 
-    /// Create a new subscription.
+    /// Subscribe an endpoint to one or more event types.
     pub async fn create(
         &self,
         workspace_id: &str,
         endpoint_id: &str,
         options: CreateSubscriptionOptions,
-    ) -> Result<Subscription, NahookError> {
+    ) -> Result<CreateSubscriptionResult, NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/endpoints/{}/subscriptions",
             encode_path_segment(workspace_id),

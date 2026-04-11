@@ -131,9 +131,16 @@ pub struct Application {
 #[serde(rename_all = "camelCase")]
 pub struct Subscription {
     pub id: String,
-    pub endpoint_id: String,
     pub event_type_id: String,
+    pub event_type_name: String,
     pub created_at: String,
+}
+
+/// Result of a subscription create operation.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSubscriptionResult {
+    pub subscribed: u32,
 }
 
 /// A portal session resource.
@@ -231,11 +238,11 @@ pub struct UpdateApplicationOptions {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-/// Options for creating a subscription.
+/// Options for creating subscriptions (subscribe to one or more event types).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateSubscriptionOptions {
-    pub event_type_id: String,
+    pub event_type_ids: Vec<String>,
 }
 
 /// Options for creating a portal session.
