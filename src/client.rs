@@ -4,6 +4,22 @@ use crate::error::NahookError;
 use crate::http_client::{encode_path_segment, HttpClient, HttpClientConfig, Method};
 use crate::types::*;
 
+const DEFAULT_BASE_URL: &str = "https://api.nahook.com";
+
+/// Resolve the regional base URL from an nhk_ API key.
+fn resolve_base_url(api_key: &str) -> &str {
+    if api_key.len() >= 7 && api_key.starts_with("nhk_") && api_key.as_bytes()[6] == b'_' {
+        match &api_key[4..6] {
+            "us" => "https://us.api.nahook.com",
+            "eu" => "https://eu.api.nahook.com",
+            "ap" => "https://ap.api.nahook.com",
+            _ => DEFAULT_BASE_URL,
+        }
+    } else {
+        DEFAULT_BASE_URL
+    }
+}
+
 /// Builder for constructing a [`NahookClient`] with custom configuration.
 #[must_use]
 pub struct NahookClientBuilder {
@@ -103,9 +119,10 @@ impl NahookClient {
             }));
         }
 
+        let resolved = base_url.unwrap_or_else(|| resolve_base_url(&api_key).to_string());
         let config = HttpClientConfig {
             token: api_key,
-            base_url: base_url.unwrap_or_else(|| "https://api.nahook.com".to_string()),
+            base_url: resolved,
             timeout_ms: timeout.map(|d| d.as_millis() as u64).unwrap_or(30_000),
             retries: retries.unwrap_or(0),
         };
