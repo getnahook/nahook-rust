@@ -904,6 +904,92 @@ fn api_error_helpers() {
     assert!(err_400.is_validation_error());
 }
 
+// ── Error helper: granular tests ──
+
+#[test]
+fn api_error_500_is_retryable() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 500,
+        code: "internal".to_string(),
+        message: "Internal server error".to_string(),
+        retry_after: None,
+    };
+    assert!(err.is_retryable());
+}
+
+#[test]
+fn api_error_429_is_retryable() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 429,
+        code: "rate_limited".to_string(),
+        message: "Too many requests".to_string(),
+        retry_after: Some(5),
+    };
+    assert!(err.is_retryable());
+}
+
+#[test]
+fn api_error_404_not_retryable() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 404,
+        code: "not_found".to_string(),
+        message: "Not found".to_string(),
+        retry_after: None,
+    };
+    assert!(!err.is_retryable());
+}
+
+#[test]
+fn api_error_401_is_auth_error() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 401,
+        code: "unauthorized".to_string(),
+        message: "Unauthorized".to_string(),
+        retry_after: None,
+    };
+    assert!(err.is_auth_error());
+}
+
+#[test]
+fn api_error_404_is_not_found() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 404,
+        code: "not_found".to_string(),
+        message: "Not found".to_string(),
+        retry_after: None,
+    };
+    assert!(err.is_not_found());
+}
+
+#[test]
+fn api_error_429_is_rate_limited() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 429,
+        code: "rate_limited".to_string(),
+        message: "Rate limited".to_string(),
+        retry_after: None,
+    };
+    assert!(err.is_rate_limited());
+}
+
+#[test]
+fn api_error_400_is_validation_error() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 400,
+        code: "validation".to_string(),
+        message: "Bad request".to_string(),
+        retry_after: None,
+    };
+    assert!(err.is_validation_error());
+}
+
 // ── URL percent-encoding ──
 
 #[tokio::test]

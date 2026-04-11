@@ -214,3 +214,59 @@ impl NahookClient {
             .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Regional routing ──
+
+    #[test]
+    fn resolve_base_url_us_region() {
+        assert_eq!(
+            resolve_base_url("nhk_us_abc123"),
+            "https://us.api.nahook.com"
+        );
+    }
+
+    #[test]
+    fn resolve_base_url_eu_region() {
+        assert_eq!(
+            resolve_base_url("nhk_eu_abc123"),
+            "https://eu.api.nahook.com"
+        );
+    }
+
+    #[test]
+    fn resolve_base_url_ap_region() {
+        assert_eq!(
+            resolve_base_url("nhk_ap_abc123"),
+            "https://ap.api.nahook.com"
+        );
+    }
+
+    #[test]
+    fn resolve_base_url_unknown_region_falls_back_to_default() {
+        assert_eq!(
+            resolve_base_url("nhk_zz_abc123"),
+            DEFAULT_BASE_URL
+        );
+    }
+
+    #[test]
+    fn base_url_option_overrides_region() {
+        let custom = "https://custom.example.com";
+        let client = NahookClient::builder("nhk_eu_abc123")
+            .base_url(custom)
+            .build()
+            .unwrap();
+        // The client was constructed successfully with a custom base_url.
+        // We verify indirectly: the resolved URL in config is the custom one,
+        // not the EU regional URL. We can check via Debug output.
+        let debug = format!("{:?}", client);
+        assert!(
+            debug.contains("custom.example.com"),
+            "Expected custom base URL in client config, got: {debug}"
+        );
+    }
+}

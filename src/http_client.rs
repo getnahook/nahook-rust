@@ -253,6 +253,40 @@ fn calculate_delay(attempt: u32, retry_after_ms: Option<u64>) -> u64 {
     (exponential as f64 * jitter) as u64
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn calculate_delay_within_exponential_cap() {
+        // attempt 0 → exponential cap = min(10_000, 500 * 2^0) = 500
+        // jitter ∈ [0, 1) so result ∈ [0, 500)
+        for _ in 0..50 {
+            let delay = calculate_delay(0, None);
+            assert!(delay < 500, "Expected delay < 500, got {delay}");
+        }
+    }
+
+    #[test]
+    fn calculate_delay_caps_at_max_delay() {
+        // attempt 10 → 500 * 2^10 = 512_000, capped to MAX_DELAY_MS = 10_000
+        // jitter ∈ [0, 1) so result ∈ [0, 10_000)
+        for _ in 0..50 {
+            let delay = calculate_delay(10, None);
+            assert!(
+                delay < MAX_DELAY_MS,
+                "Expected delay < {MAX_DELAY_MS}, got {delay}"
+            );
+        }
+    }
+
+    #[test]
+    fn calculate_delay_uses_retry_after() {
+        let delay = calculate_delay(0, Some(3000));
+        assert_eq!(delay, 3000, "Expected retry_after value to be used directly");
+    }
+}
+
 /// Percent-encode a path segment (mirrors JavaScript's `encodeURIComponent`).
 ///
 /// Encodes all characters except unreserved characters: A-Z a-z 0-9 - _ . ~ ! ' ( ) *
