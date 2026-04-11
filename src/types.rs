@@ -245,6 +245,49 @@ pub struct CreateSubscriptionOptions {
     pub event_type_ids: Vec<String>,
 }
 
+/// An environment resource.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Environment {
+    pub id: String,
+    pub name: String,
+    pub slug: String,
+    pub is_default: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Options for creating an environment.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateEnvironmentOptions {
+    pub name: String,
+    pub slug: String,
+}
+
+/// Options for updating an environment.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateEnvironmentOptions {
+    pub name: String,
+}
+
+/// An event type visibility entry within an environment.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EventTypeVisibility {
+    pub event_type_id: String,
+    pub event_type_name: String,
+    pub published: bool,
+}
+
+/// Options for setting event type visibility in an environment.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetVisibilityOptions {
+    pub published: bool,
+}
+
 /// Options for creating a portal session.
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]

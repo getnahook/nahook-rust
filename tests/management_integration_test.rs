@@ -1,6 +1,7 @@
 use nahook::types::{
-    CreateApplicationOptions, CreateEndpointOptions, CreateEventTypeOptions,
-    CreateSubscriptionOptions, UpdateApplicationOptions, UpdateEndpointOptions,
+    CreateApplicationOptions, CreateEndpointOptions, CreateEnvironmentOptions,
+    CreateEventTypeOptions, CreateSubscriptionOptions, SetVisibilityOptions,
+    UpdateApplicationOptions, UpdateEndpointOptions, UpdateEnvironmentOptions,
     UpdateEventTypeOptions, CreateSubscriptionResult,
 };
 use nahook::{NahookError, NahookManagement};
@@ -471,6 +472,204 @@ async fn test_subscriptions_lifecycle() {
         .delete(ws, &endpoint.id)
         .await
         .expect("cleanup: delete endpoint should succeed");
+
+    mgmt.event_types()
+        .delete(ws, &event_type.id)
+        .await
+        .expect("cleanup: delete event type should succeed");
+}
+
+// ── Environments CRUD ──
+
+#[tokio::test]
+async fn test_environments_crud() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+    let ws = &cfg.workspace_id;
+    let suffix = unique_suffix();
+    let env_name = format!("Test Env {}", suffix);
+    let env_slug = format!("test-env-{}", suffix);
+
+    // Create
+    let created = mgmt
+        .environments()
+        .create(
+            ws,
+            CreateEnvironmentOptions {
+                name: env_name.clone(),
+                slug: env_slug.clone(),
+            },
+        )
+        .await
+        .expect("create environment should succeed");
+
+    assert!(
+        !created.id.is_empty(),
+        "environment id should not be empty"
+    );
+    assert_eq!(created.name, env_name);
+    assert_eq!(created.slug, env_slug);
+    assert!(!created.is_default, "new environment should not be default");
+
+    // List (should contain at least default + newly created)
+    let list = mgmt
+        .environments()
+        .list(ws)
+        .await
+        .expect("list environments should succeed");
+
+    assert!(
+        list.data.len() >= 2,
+        "should have at least 2 environments (default + created), got: {}",
+        list.data.len()
+    );
+    assert!(
+        list.data.iter().any(|e| e.id == created.id),
+        "created environment should appear in list"
+    );
+
+    // Get
+    let fetched = mgmt
+        .environments()
+        .get(ws, &created.id)
+        .await
+        .expect("get environment should succeed");
+
+    assert_eq!(fetched.id, created.id);
+    assert_eq!(fetched.name, env_name);
+    assert_eq!(fetched.slug, env_slug);
+
+    // Update
+    let updated_name = format!("Updated Env {}", suffix);
+    let updated = mgmt
+        .environments()
+        .update(
+            ws,
+            &created.id,
+            UpdateEnvironmentOptions {
+                name: updated_name.clone(),
+            },
+        )
+        .await
+        .expect("update environment should succeed");
+
+    assert_eq!(updated.id, created.id);
+    assert_eq!(updated.name, updated_name);
+
+    // Delete
+    mgmt.environments()
+        .delete(ws, &created.id)
+        .await
+        .expect("delete environment should succeed");
+
+    // Verify deleted (get should 404)
+    let err = mgmt
+        .environments()
+        .get(ws, &created.id)
+        .await
+        .expect_err("get deleted environment should fail");
+
+    match &err {
+        NahookError::Api(api_err) => {
+            assert_eq!(api_err.status, 404, "expected 404 after delete");
+        }
+        other => panic!("expected NahookError::Api, got: {:?}", other),
+    }
+}
+
+// ── Event Type Visibility ──
+
+#[tokio::test]
+async fn test_event_type_visibility() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+    let ws = &cfg.workspace_id;
+    let suffix = unique_suffix();
+
+    // Create an environment
+    let env = mgmt
+        .environments()
+        .create(
+            ws,
+            CreateEnvironmentOptions {
+                name: format!("Vis Env {}", suffix),
+                slug: format!("vis-env-{}", suffix),
+            },
+        )
+        .await
+        .expect("create environment should succeed");
+
+    // Create an event type
+    let event_type = mgmt
+        .event_types()
+        .create(
+            ws,
+            CreateEventTypeOptions {
+                name: format!("test.visibility.{}", suffix),
+                description: Some("visibility test event type".to_string()),
+            },
+        )
+        .await
+        .expect("create event type should succeed");
+
+    // List visibility — should contain the event type
+    let vis_list = mgmt
+        .environments()
+        .list_event_type_visibility(ws, &env.id)
+        .await
+        .expect("list event type visibility should succeed");
+
+    let entry = vis_list
+        .data
+        .iter()
+        .find(|v| v.event_type_id == event_type.id);
+    assert!(entry.is_some(), "event type should appear in visibility list");
+
+    // Set published = true
+    let updated = mgmt
+        .environments()
+        .set_event_type_visibility(
+            ws,
+            &env.id,
+            &event_type.id,
+            SetVisibilityOptions { published: true },
+        )
+        .await
+        .expect("set visibility should succeed");
+
+    assert_eq!(updated.event_type_id, event_type.id);
+    assert!(updated.published, "event type should be published");
+
+    // Verify by listing again
+    let vis_list_after = mgmt
+        .environments()
+        .list_event_type_visibility(ws, &env.id)
+        .await
+        .expect("list visibility after update should succeed");
+
+    let entry_after = vis_list_after
+        .data
+        .iter()
+        .find(|v| v.event_type_id == event_type.id);
+    assert!(entry_after.is_some(), "event type should still appear");
+    assert!(
+        entry_after.unwrap().published,
+        "event type should be published after update"
+    );
+
+    // Cleanup
+    mgmt.environments()
+        .delete(ws, &env.id)
+        .await
+        .expect("cleanup: delete environment should succeed");
 
     mgmt.event_types()
         .delete(ws, &event_type.id)

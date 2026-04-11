@@ -16,6 +16,7 @@ const MAX_DELAY_MS: u64 = 10_000;
 pub(crate) enum Method {
     Get,
     Post,
+    Put,
     Patch,
     Delete,
 }
@@ -146,6 +147,7 @@ impl HttpClient {
             let mut request = match method {
                 Method::Get => self.client.get(&url),
                 Method::Post => self.client.post(&url),
+                Method::Put => self.client.put(&url),
                 Method::Patch => self.client.patch(&url),
                 Method::Delete => self.client.delete(&url),
             };

@@ -4,6 +4,7 @@ use crate::error::NahookError;
 use crate::http_client::{HttpClient, HttpClientConfig};
 use crate::resources::applications::ApplicationsResource;
 use crate::resources::endpoints::EndpointsResource;
+use crate::resources::environments::EnvironmentsResource;
 use crate::resources::event_types::EventTypesResource;
 use crate::resources::portal_sessions::PortalSessionsResource;
 use crate::resources::subscriptions::SubscriptionsResource;
@@ -108,6 +109,11 @@ impl NahookManagement {
     /// Access the endpoints resource.
     pub fn endpoints(&self) -> EndpointsResource<'_> {
         EndpointsResource { http: &self.http }
+    }
+
+    /// Access the environments resource.
+    pub fn environments(&self) -> EnvironmentsResource<'_> {
+        EnvironmentsResource { http: &self.http }
     }
 
     /// Access the event types resource.
