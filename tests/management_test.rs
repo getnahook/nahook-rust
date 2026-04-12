@@ -836,6 +836,253 @@ async fn management_portal_sessions_create() {
     assert_eq!(result.code, "portal_code_123");
 }
 
+// ── Management: environments ──
+
+#[tokio::test]
+async fn management_environments_list() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/management/v1/workspaces/ws_123/environments"))
+        .and(header("authorization", "Bearer nhm_test123"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {
+                "id": "env_abc",
+                "name": "Production",
+                "slug": "production",
+                "isDefault": true,
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z"
+            }
+        ])))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt.environments().list("ws_123").await.unwrap();
+    assert_eq!(result.data.len(), 1);
+    assert_eq!(result.data[0].id, "env_abc");
+    assert_eq!(result.data[0].name, "Production");
+    assert!(result.data[0].is_default);
+}
+
+#[tokio::test]
+async fn management_environments_create() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/management/v1/workspaces/ws_123/environments"))
+        .and(header("content-type", "application/json"))
+        .and(body_json(json!({
+            "name": "Staging",
+            "slug": "staging"
+        })))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "id": "env_new",
+            "name": "Staging",
+            "slug": "staging",
+            "isDefault": false,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .environments()
+        .create(
+            "ws_123",
+            CreateEnvironmentOptions {
+                name: "Staging".to_string(),
+                slug: "staging".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.id, "env_new");
+    assert_eq!(result.slug, "staging");
+    assert!(!result.is_default);
+}
+
+#[tokio::test]
+async fn management_environments_get() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/management/v1/workspaces/ws_123/environments/env_abc"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "env_abc",
+            "name": "Production",
+            "slug": "production",
+            "isDefault": true,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt.environments().get("ws_123", "env_abc").await.unwrap();
+    assert_eq!(result.id, "env_abc");
+    assert_eq!(result.name, "Production");
+}
+
+#[tokio::test]
+async fn management_environments_update() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PATCH"))
+        .and(path("/management/v1/workspaces/ws_123/environments/env_abc"))
+        .and(body_json(json!({
+            "name": "Pre-production"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "env_abc",
+            "name": "Pre-production",
+            "slug": "production",
+            "isDefault": true,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-02T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .environments()
+        .update(
+            "ws_123",
+            "env_abc",
+            UpdateEnvironmentOptions {
+                name: Some("Pre-production".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.name, "Pre-production");
+}
+
+#[tokio::test]
+async fn management_environments_delete() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("DELETE"))
+        .and(path("/management/v1/workspaces/ws_123/environments/env_abc"))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    mgmt.environments()
+        .delete("ws_123", "env_abc")
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn management_environments_list_event_type_visibility() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/environments/env_abc/event-types",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {
+                "eventTypeId": "evt_order",
+                "eventTypeName": "order.created",
+                "published": true
+            }
+        ])))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .environments()
+        .list_event_type_visibility("ws_123", "env_abc")
+        .await
+        .unwrap();
+
+    assert_eq!(result.data.len(), 1);
+    assert_eq!(result.data[0].event_type_name, "order.created");
+    assert!(result.data[0].published);
+}
+
+#[tokio::test]
+async fn management_environments_set_event_type_visibility() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PUT"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/environments/env_abc/event-types/evt_order/visibility",
+        ))
+        .and(header("content-type", "application/json"))
+        .and(body_json(json!({
+            "published": true
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "eventTypeId": "evt_order",
+            "eventTypeName": "order.created",
+            "published": true
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .environments()
+        .set_event_type_visibility(
+            "ws_123",
+            "env_abc",
+            "evt_order",
+            SetVisibilityOptions { published: true },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.event_type_name, "order.created");
+    assert!(result.published);
+}
+
 // ── Error type helpers ──
 
 #[test]
@@ -986,6 +1233,95 @@ fn api_error_400_is_validation_error() {
         retry_after: None,
     };
     assert!(err.is_validation_error());
+}
+
+// ── ERR-05: 403 + token_disabled is auth error ──
+
+#[test]
+fn api_error_403_token_disabled_is_auth_error() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 403,
+        code: "token_disabled".to_string(),
+        message: "Token disabled".to_string(),
+        retry_after: None,
+    };
+    assert!(err.is_auth_error());
+    assert!(!err.is_retryable());
+}
+
+// ── ERR-06: 403 + other code is NOT auth error ──
+
+#[test]
+fn api_error_403_other_code_is_not_auth_error() {
+    use nahook::error::ApiError;
+    let err = ApiError {
+        status: 403,
+        code: "forbidden".to_string(),
+        message: "Forbidden".to_string(),
+        retry_after: None,
+    };
+    assert!(!err.is_auth_error());
+}
+
+// ── ERR-10: Network error wraps original cause ──
+
+#[tokio::test]
+async fn network_error_wraps_original_cause() {
+    use nahook::error::{NahookError, NetworkError};
+
+    // Build a reqwest::Error by making a request to an unreachable address
+    let reqwest_err = reqwest::Client::new()
+        .get("http://[::1]:1") // unreachable port
+        .timeout(std::time::Duration::from_millis(1))
+        .send()
+        .await
+        .unwrap_err();
+
+    let network_err = NetworkError { cause: reqwest_err };
+
+    // Verify the cause is accessible via Display
+    let display = format!("{}", network_err);
+    assert!(
+        display.starts_with("Network error:"),
+        "Expected 'Network error:' prefix, got: {display}"
+    );
+
+    // Verify it converts into NahookError::Network
+    let nahook_err: NahookError = network_err.into();
+    match &nahook_err {
+        NahookError::Network(inner) => {
+            // std::error::Error::source() should return the reqwest::Error
+            use std::error::Error;
+            assert!(
+                inner.source().is_some(),
+                "NetworkError.source() should return the wrapped reqwest::Error"
+            );
+        }
+        _ => panic!("Expected NahookError::Network, got: {nahook_err:?}"),
+    }
+}
+
+// ── ERR-11: Timeout error stores timeout value ──
+
+#[test]
+fn timeout_error_stores_timeout_value() {
+    use nahook::error::{NahookError, TimeoutError};
+
+    let timeout_err = TimeoutError { timeout_ms: 5000 };
+    assert_eq!(timeout_err.timeout_ms, 5000);
+
+    let display = format!("{}", timeout_err);
+    assert_eq!(display, "Request timed out after 5000ms");
+
+    // Verify it converts into NahookError::Timeout
+    let nahook_err: NahookError = timeout_err.into();
+    match &nahook_err {
+        NahookError::Timeout(inner) => {
+            assert_eq!(inner.timeout_ms, 5000);
+        }
+        _ => panic!("Expected NahookError::Timeout, got: {nahook_err:?}"),
+    }
 }
 
 // ── URL percent-encoding ──
