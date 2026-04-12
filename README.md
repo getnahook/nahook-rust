@@ -176,6 +176,29 @@ async fn main() -> Result<(), nahook::NahookError> {
     let portal = mgmt.portal_sessions().create("ws_abc123", &app.id, None).await?;
     println!("Portal URL: {}", portal.url);
 
+    // Environments
+    let envs = mgmt.environments().list("ws_abc123").await?;
+    for env in &envs.data {
+        println!("Env: {} ({}, default: {})", env.name, env.slug, env.is_default);
+    }
+
+    let new_env = mgmt.environments().create("ws_abc123", CreateEnvironmentOptions {
+        name: "Staging".to_string(),
+        slug: "staging".to_string(),
+    }).await?;
+
+    mgmt.environments().update("ws_abc123", &new_env.id, UpdateEnvironmentOptions {
+        name: Some("Pre-production".to_string()),
+    }).await?;
+
+    mgmt.environments().delete("ws_abc123", &new_env.id).await?;
+
+    // Event type visibility
+    let vis = mgmt.environments().list_event_type_visibility("ws_abc123", &new_env.id).await?;
+    mgmt.environments().set_event_type_visibility("ws_abc123", &new_env.id, &evt.id, SetVisibilityOptions {
+        published: true,
+    }).await?;
+
     Ok(())
 }
 ```
