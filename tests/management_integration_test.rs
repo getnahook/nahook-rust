@@ -551,7 +551,7 @@ async fn test_environments_crud() {
             ws,
             &created.id,
             UpdateEnvironmentOptions {
-                name: updated_name.clone(),
+                name: Some(updated_name.clone()),
             },
         )
         .await
@@ -664,6 +664,20 @@ async fn test_event_type_visibility() {
         entry_after.unwrap().published,
         "event type should be published after update"
     );
+
+    // Set published = false
+    let unpublished = mgmt
+        .environments()
+        .set_event_type_visibility(
+            ws,
+            &env.id,
+            &event_type.id,
+            SetVisibilityOptions { published: false },
+        )
+        .await
+        .expect("set visibility to false should succeed");
+
+    assert!(!unpublished.published, "event type should be unpublished");
 
     // Cleanup
     mgmt.environments()

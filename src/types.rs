@@ -269,7 +269,8 @@ pub struct CreateEnvironmentOptions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateEnvironmentOptions {
-    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// An event type visibility entry within an environment.
