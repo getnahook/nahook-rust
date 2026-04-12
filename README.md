@@ -120,11 +120,24 @@ use std::time::Duration;
 use nahook::NahookClient;
 
 let client = NahookClient::builder("nhk_us_your_api_key")
-    .base_url("https://api.nahook.com")
     .timeout(Duration::from_secs(15))
     .retries(3)
     .build()?;
 ```
+
+### Configuration
+
+The SDK automatically routes requests to the correct regional API based on your API key prefix (`nhk_us_...` -> US, `nhk_eu_...` -> EU, `nhk_ap_...` -> Asia Pacific). No configuration needed.
+
+To override the base URL (for testing or local development):
+
+```rust
+let client = NahookClient::builder("nhk_us_your_api_key")
+    .base_url("http://localhost:3001")
+    .build()?;
+```
+
+For unit tests, mock the SDK client at the dependency injection boundary. For integration tests, override the base URL to point at a local server.
 
 ## Management API
 
@@ -210,7 +223,6 @@ use std::time::Duration;
 use nahook::NahookManagement;
 
 let mgmt = NahookManagement::builder("nhm_your_token")
-    .base_url("https://api.nahook.com")
     .timeout(Duration::from_secs(60))
     .build()?;
 ```
