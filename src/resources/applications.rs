@@ -50,11 +50,7 @@ impl<'a> ApplicationsResource<'a> {
     }
 
     /// Get an application by ID.
-    pub async fn get(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<Application, NahookError> {
+    pub async fn get(&self, workspace_id: &str, id: &str) -> Result<Application, NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/applications/{}",
             encode_path_segment(workspace_id),
@@ -83,11 +79,7 @@ impl<'a> ApplicationsResource<'a> {
     }
 
     /// Delete an application.
-    pub async fn delete(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<(), NahookError> {
+    pub async fn delete(&self, workspace_id: &str, id: &str) -> Result<(), NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/applications/{}",
             encode_path_segment(workspace_id),

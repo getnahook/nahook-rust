@@ -357,8 +357,14 @@ async fn test_error_403_disabled_key() {
     match &err {
         NahookError::Api(api_err) => {
             assert_eq!(api_err.status, 403, "expected 403 status");
-            assert_eq!(api_err.code, "token_disabled", "expected token_disabled code");
-            assert!(api_err.is_auth_error(), "disabled key should be an auth error");
+            assert_eq!(
+                api_err.code, "token_disabled",
+                "expected token_disabled code"
+            );
+            assert!(
+                api_err.is_auth_error(),
+                "disabled key should be an auth error"
+            );
         }
         other => panic!("expected NahookError::Api, got: {:?}", other),
     }

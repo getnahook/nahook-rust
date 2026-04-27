@@ -68,7 +68,11 @@ impl ApiError {
 
 impl fmt::Display for ApiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "API error {}: {} ({})", self.status, self.message, self.code)
+        write!(
+            f,
+            "API error {}: {} ({})",
+            self.status, self.message, self.code
+        )
     }
 }
 

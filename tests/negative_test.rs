@@ -35,7 +35,10 @@ async fn neg_01_malformed_json_response() {
 
     let mgmt = build_mgmt(&server.uri());
     let result = mgmt.endpoints().list("ws_1").await;
-    assert!(result.is_err(), "NEG-01: malformed JSON should produce an error");
+    assert!(
+        result.is_err(),
+        "NEG-01: malformed JSON should produce an error"
+    );
 }
 
 // ── NEG-02: Empty body on 200 ──
@@ -57,7 +60,10 @@ async fn neg_02_empty_body_on_200() {
 
     let mgmt = build_mgmt(&server.uri());
     let result = mgmt.endpoints().list("ws_1").await;
-    assert!(result.is_err(), "NEG-02: empty body on 200 should produce an error");
+    assert!(
+        result.is_err(),
+        "NEG-02: empty body on 200 should produce an error"
+    );
 }
 
 // ── NEG-03: 5xx with HTML body ──
@@ -146,7 +152,10 @@ async fn neg_05_unknown_extra_fields_ignored() {
 
     let mgmt = build_mgmt(&server.uri());
     let result = mgmt.endpoints().list("ws_1").await;
-    assert!(result.is_ok(), "NEG-05: unknown fields should be silently ignored");
+    assert!(
+        result.is_ok(),
+        "NEG-05: unknown fields should be silently ignored"
+    );
     let list = result.unwrap();
     assert_eq!(list.data.len(), 1);
     assert_eq!(list.data[0].id, "ep_1");
@@ -178,7 +187,10 @@ async fn neg_06_missing_optional_fields() {
 
     let mgmt = build_mgmt(&server.uri());
     let result = mgmt.endpoints().list("ws_1").await;
-    assert!(result.is_ok(), "NEG-06: missing optional fields should default gracefully");
+    assert!(
+        result.is_ok(),
+        "NEG-06: missing optional fields should default gracefully"
+    );
     let list = result.unwrap();
     assert_eq!(list.data.len(), 1);
     assert_eq!(list.data[0].id, "ep_1");

@@ -1,0 +1,15 @@
+# Build artifacts
+/target/
+
+# Crate package output
+*.crate
+
+# Backup files from cargo fmt
+**/*.rs.bk
+
+# IDE
+.vscode/
+.idea/
+
+# OS noise
+.DS_Store

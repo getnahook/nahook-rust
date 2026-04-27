@@ -60,12 +60,7 @@ impl NahookClientBuilder {
 
     /// Build the [`NahookClient`].
     pub fn build(self) -> Result<NahookClient, NahookError> {
-        NahookClient::new_internal(
-            self.api_key,
-            self.base_url,
-            self.timeout,
-            self.retries,
-        )
+        NahookClient::new_internal(self.api_key, self.base_url, self.timeout, self.retries)
     }
 }
 
@@ -183,10 +178,7 @@ impl NahookClient {
     }
 
     /// Batch send to multiple specific endpoints (max 20 items).
-    pub async fn send_batch(
-        &self,
-        items: Vec<SendBatchItem>,
-    ) -> Result<BatchResult, NahookError> {
+    pub async fn send_batch(&self, items: Vec<SendBatchItem>) -> Result<BatchResult, NahookError> {
         #[derive(serde::Serialize)]
         struct BatchBody {
             items: Vec<SendBatchItem>,
@@ -247,10 +239,7 @@ mod tests {
 
     #[test]
     fn resolve_base_url_unknown_region_falls_back_to_default() {
-        assert_eq!(
-            resolve_base_url("nhk_zz_abc123"),
-            DEFAULT_BASE_URL
-        );
+        assert_eq!(resolve_base_url("nhk_zz_abc123"), DEFAULT_BASE_URL);
     }
 
     #[test]

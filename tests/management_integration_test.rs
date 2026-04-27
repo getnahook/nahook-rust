@@ -1,8 +1,8 @@
 use nahook::types::{
     CreateApplicationOptions, CreateEndpointOptions, CreateEnvironmentOptions,
-    CreateEventTypeOptions, CreateSubscriptionOptions, SetVisibilityOptions,
-    UpdateApplicationOptions, UpdateEndpointOptions, UpdateEnvironmentOptions,
-    UpdateEventTypeOptions, CreateSubscriptionResult,
+    CreateEventTypeOptions, CreateSubscriptionOptions, CreateSubscriptionResult,
+    SetVisibilityOptions, UpdateApplicationOptions, UpdateEndpointOptions,
+    UpdateEnvironmentOptions, UpdateEventTypeOptions,
 };
 use nahook::{NahookError, NahookManagement};
 
@@ -242,7 +242,10 @@ async fn test_endpoints_crud() {
         updated.description.as_deref(),
         Some("updated endpoint description")
     );
-    assert!(!updated.is_active, "endpoint should be inactive after update");
+    assert!(
+        !updated.is_active,
+        "endpoint should be inactive after update"
+    );
 
     // Delete
     mgmt.endpoints()
@@ -432,9 +435,7 @@ async fn test_subscriptions_lifecycle() {
         .expect("list subscriptions should succeed");
 
     assert!(
-        list.data
-            .iter()
-            .any(|s| s.event_type_id == event_type.id),
+        list.data.iter().any(|s| s.event_type_id == event_type.id),
         "created subscription should appear in list"
     );
 
@@ -507,10 +508,7 @@ async fn test_environments_crud() {
         .await
         .expect("create environment should succeed");
 
-    assert!(
-        !created.id.is_empty(),
-        "environment id should not be empty"
-    );
+    assert!(!created.id.is_empty(), "environment id should not be empty");
     assert_eq!(created.name, env_name);
     assert_eq!(created.slug, env_slug);
     assert!(!created.is_default, "new environment should not be default");
@@ -631,7 +629,10 @@ async fn test_event_type_visibility() {
         .data
         .iter()
         .find(|v| v.event_type_id == event_type.id);
-    assert!(entry.is_some(), "event type should appear in visibility list");
+    assert!(
+        entry.is_some(),
+        "event type should appear in visibility list"
+    );
 
     // Set published = true
     let updated = mgmt

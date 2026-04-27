@@ -32,11 +32,7 @@ impl<'a> EndpointsResource<'a> {
     }
 
     /// Get an endpoint by ID.
-    pub async fn get(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<Endpoint, NahookError> {
+    pub async fn get(&self, workspace_id: &str, id: &str) -> Result<Endpoint, NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/endpoints/{}",
             encode_path_segment(workspace_id),
@@ -65,11 +61,7 @@ impl<'a> EndpointsResource<'a> {
     }
 
     /// Delete an endpoint.
-    pub async fn delete(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<(), NahookError> {
+    pub async fn delete(&self, workspace_id: &str, id: &str) -> Result<(), NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/endpoints/{}",
             encode_path_segment(workspace_id),

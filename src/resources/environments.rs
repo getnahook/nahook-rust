@@ -32,11 +32,7 @@ impl<'a> EnvironmentsResource<'a> {
     }
 
     /// Get an environment by ID.
-    pub async fn get(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<Environment, NahookError> {
+    pub async fn get(&self, workspace_id: &str, id: &str) -> Result<Environment, NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/environments/{}",
             encode_path_segment(workspace_id),
@@ -65,11 +61,7 @@ impl<'a> EnvironmentsResource<'a> {
     }
 
     /// Delete an environment.
-    pub async fn delete(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<(), NahookError> {
+    pub async fn delete(&self, workspace_id: &str, id: &str) -> Result<(), NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/environments/{}",
             encode_path_segment(workspace_id),
@@ -109,8 +101,6 @@ impl<'a> EnvironmentsResource<'a> {
             encode_path_segment(environment_id),
             encode_path_segment(event_type_id)
         );
-        self.http
-            .request(Method::Put, &path, Some(&options))
-            .await
+        self.http.request(Method::Put, &path, Some(&options)).await
     }
 }

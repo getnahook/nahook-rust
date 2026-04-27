@@ -32,11 +32,7 @@ impl<'a> EventTypesResource<'a> {
     }
 
     /// Get an event type by ID.
-    pub async fn get(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<EventType, NahookError> {
+    pub async fn get(&self, workspace_id: &str, id: &str) -> Result<EventType, NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/event-types/{}",
             encode_path_segment(workspace_id),
@@ -65,11 +61,7 @@ impl<'a> EventTypesResource<'a> {
     }
 
     /// Delete an event type.
-    pub async fn delete(
-        &self,
-        workspace_id: &str,
-        id: &str,
-    ) -> Result<(), NahookError> {
+    pub async fn delete(&self, workspace_id: &str, id: &str) -> Result<(), NahookError> {
         let path = format!(
             "/management/v1/workspaces/{}/event-types/{}",
             encode_path_segment(workspace_id),

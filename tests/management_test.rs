@@ -231,10 +231,7 @@ async fn client_trigger_batch_calls_correct_endpoint() {
         .unwrap();
 
     assert_eq!(result.items.len(), 1);
-    assert_eq!(
-        result.items[0].event_type_id.as_deref(),
-        Some("evt_abc")
-    );
+    assert_eq!(result.items[0].event_type_id.as_deref(), Some("evt_abc"));
 }
 
 // ── Client: error handling ──
@@ -509,10 +506,7 @@ async fn management_endpoints_delete() {
         .build()
         .unwrap();
 
-    mgmt.endpoints()
-        .delete("ws_123", "ep_abc")
-        .await
-        .unwrap();
+    mgmt.endpoints().delete("ws_123", "ep_abc").await.unwrap();
 }
 
 // ── Management: event types ──
@@ -611,11 +605,7 @@ async fn management_applications_list() {
         .build()
         .unwrap();
 
-    let result = mgmt
-        .applications()
-        .list("ws_123", None)
-        .await
-        .unwrap();
+    let result = mgmt.applications().list("ws_123", None).await.unwrap();
 
     assert_eq!(result.data.len(), 1);
     assert_eq!(result.data[0].name, "My App");
@@ -729,11 +719,7 @@ async fn management_subscriptions_list() {
         .build()
         .unwrap();
 
-    let result = mgmt
-        .subscriptions()
-        .list("ws_123", "ep_abc")
-        .await
-        .unwrap();
+    let result = mgmt.subscriptions().list("ws_123", "ep_abc").await.unwrap();
 
     assert_eq!(result.data.len(), 1);
     assert_eq!(result.data[0].event_type_id, "evt_order");
@@ -921,7 +907,9 @@ async fn management_environments_get() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/management/v1/workspaces/ws_123/environments/env_abc"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/environments/env_abc",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "id": "env_abc",
             "name": "Production",
@@ -949,7 +937,9 @@ async fn management_environments_update() {
     let server = MockServer::start().await;
 
     Mock::given(method("PATCH"))
-        .and(path("/management/v1/workspaces/ws_123/environments/env_abc"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/environments/env_abc",
+        ))
         .and(body_json(json!({
             "name": "Pre-production"
         })))
@@ -990,7 +980,9 @@ async fn management_environments_delete() {
     let server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/management/v1/workspaces/ws_123/environments/env_abc"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/environments/env_abc",
+        ))
         .respond_with(ResponseTemplate::new(204))
         .expect(1)
         .mount(&server)
