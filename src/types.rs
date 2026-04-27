@@ -13,7 +13,7 @@ pub struct SendOptions {
 }
 
 /// Result of a successful send operation.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SendResult {
     pub delivery_id: String,
@@ -31,7 +31,7 @@ pub struct TriggerOptions {
 }
 
 /// Result of a successful trigger operation.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TriggerResult {
     pub event_type_id: String,
@@ -60,7 +60,7 @@ pub struct TriggerBatchItem {
 }
 
 /// A single item in a batch result.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BatchResultItem {
     pub index: u32,
@@ -73,14 +73,14 @@ pub struct BatchResultItem {
 }
 
 /// Error details for a single batch item.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BatchItemError {
     pub code: String,
     pub message: String,
 }
 
 /// Result of a batch operation.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BatchResult {
     pub items: Vec<BatchResultItem>,
 }

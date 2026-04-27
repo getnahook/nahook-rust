@@ -42,13 +42,14 @@ impl HttpClient {
         let mut default_headers = HeaderMap::new();
         default_headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", config.token))
-                .map_err(|e| NahookError::Api(ApiError {
+            HeaderValue::from_str(&format!("Bearer {}", config.token)).map_err(|e| {
+                NahookError::Api(ApiError {
                     status: 0,
                     code: "invalid_header".to_string(),
                     message: format!("Invalid authorization header: {e}"),
                     retry_after: None,
-                }))?,
+                })
+            })?,
         );
         default_headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         default_headers.insert(
@@ -111,7 +112,9 @@ impl HttpClient {
         method: Method,
         path: &str,
     ) -> Result<Vec<T>, NahookError> {
-        let response = self.execute_with_retry::<serde_json::Value>(method, path, None).await?;
+        let response = self
+            .execute_with_retry::<serde_json::Value>(method, path, None)
+            .await?;
         response
             .json::<Vec<T>>()
             .await
@@ -135,9 +138,7 @@ impl HttpClient {
         for attempt in 0..=self.config.retries {
             if attempt > 0 {
                 let retry_after_ms = match &last_error {
-                    Some(NahookError::Api(api_err)) => {
-                        api_err.retry_after.map(|s| s * 1000)
-                    }
+                    Some(NahookError::Api(api_err)) => api_err.retry_after.map(|s| s * 1000),
                     _ => None,
                 };
                 let delay = calculate_delay(attempt - 1, retry_after_ms);
@@ -153,9 +154,7 @@ impl HttpClient {
             };
 
             if let Some(b) = body {
-                request = request
-                    .header(CONTENT_TYPE, "application/json")
-                    .json(b);
+                request = request.header(CONTENT_TYPE, "application/json").json(b);
             }
 
             match request.send().await {
@@ -221,7 +220,9 @@ async fn parse_error(response: reqwest::Response) -> NahookError {
             });
             (
                 detail.code.unwrap_or_else(|| "unknown".to_string()),
-                detail.message.unwrap_or_else(|| "Unknown error".to_string()),
+                detail
+                    .message
+                    .unwrap_or_else(|| "Unknown error".to_string()),
             )
         }
         Err(_) => ("unknown".to_string(), "Unknown error".to_string()),
@@ -255,6 +256,28 @@ fn calculate_delay(attempt: u32, retry_after_ms: Option<u64>) -> u64 {
     (exponential as f64 * jitter) as u64
 }
 
+/// Percent-encode a path segment (mirrors JavaScript's `encodeURIComponent`).
+///
+/// Encodes all characters except unreserved characters: A-Z a-z 0-9 - _ . ~ ! ' ( ) *
+/// This matches the behavior of JavaScript's `encodeURIComponent`.
+pub(crate) fn encode_path_segment(segment: &str) -> String {
+    /// Characters NOT encoded by JavaScript's `encodeURIComponent`:
+    /// A-Z a-z 0-9 - _ . ~ ! ' ( ) *
+    const ENCODE_URI_COMPONENT_SET: &percent_encoding::AsciiSet =
+        &percent_encoding::NON_ALPHANUMERIC
+            .remove(b'-')
+            .remove(b'_')
+            .remove(b'.')
+            .remove(b'~')
+            .remove(b'!')
+            .remove(b'\'')
+            .remove(b'(')
+            .remove(b')')
+            .remove(b'*');
+
+    percent_encoding::utf8_percent_encode(segment, ENCODE_URI_COMPONENT_SET).to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -285,27 +308,9 @@ mod tests {
     #[test]
     fn calculate_delay_uses_retry_after() {
         let delay = calculate_delay(0, Some(3000));
-        assert_eq!(delay, 3000, "Expected retry_after value to be used directly");
+        assert_eq!(
+            delay, 3000,
+            "Expected retry_after value to be used directly"
+        );
     }
-}
-
-/// Percent-encode a path segment (mirrors JavaScript's `encodeURIComponent`).
-///
-/// Encodes all characters except unreserved characters: A-Z a-z 0-9 - _ . ~ ! ' ( ) *
-/// This matches the behavior of JavaScript's `encodeURIComponent`.
-pub(crate) fn encode_path_segment(segment: &str) -> String {
-    /// Characters NOT encoded by JavaScript's `encodeURIComponent`:
-    /// A-Z a-z 0-9 - _ . ~ ! ' ( ) *
-    const ENCODE_URI_COMPONENT_SET: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC
-        .remove(b'-')
-        .remove(b'_')
-        .remove(b'.')
-        .remove(b'~')
-        .remove(b'!')
-        .remove(b'\'')
-        .remove(b'(')
-        .remove(b')')
-        .remove(b'*');
-
-    percent_encoding::utf8_percent_encode(segment, ENCODE_URI_COMPONENT_SET).to_string()
 }

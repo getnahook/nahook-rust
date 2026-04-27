@@ -13,12 +13,10 @@ type HmacSha256 = Hmac<Sha256>;
 // ── Helpers ──
 
 fn compute_signature(secret: &str, msg_id: &str, timestamp: &str, payload: &str) -> String {
-    let raw_secret = if secret.starts_with("whsec_") {
-        &secret[6..]
-    } else {
-        secret
-    };
-    let key = BASE64.decode(raw_secret).unwrap_or_else(|_| raw_secret.as_bytes().to_vec());
+    let raw_secret = secret.strip_prefix("whsec_").unwrap_or(secret);
+    let key = BASE64
+        .decode(raw_secret)
+        .unwrap_or_else(|_| raw_secret.as_bytes().to_vec());
     let to_sign = format!("{}.{}.{}", msg_id, timestamp, payload);
     let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can take key of any size");
     mac.update(to_sign.as_bytes());
@@ -76,8 +74,7 @@ fn conformance_error_classification() {
     let json_str =
         std::fs::read_to_string("../fixtures/conformance/error-classification/cases.json")
             .expect("error-classification fixtures must exist");
-    let cases: Vec<serde_json::Value> =
-        serde_json::from_str(&json_str).expect("valid JSON array");
+    let cases: Vec<serde_json::Value> = serde_json::from_str(&json_str).expect("valid JSON array");
 
     for case in &cases {
         let id = case["id"].as_str().unwrap();
@@ -125,8 +122,7 @@ fn conformance_error_classification() {
 fn conformance_region_routing() {
     let json_str = std::fs::read_to_string("../fixtures/conformance/region-routing/cases.json")
         .expect("region-routing fixtures must exist");
-    let cases: Vec<serde_json::Value> =
-        serde_json::from_str(&json_str).expect("valid JSON array");
+    let cases: Vec<serde_json::Value> = serde_json::from_str(&json_str).expect("valid JSON array");
 
     for case in &cases {
         let id = case["id"].as_str().unwrap();
@@ -144,8 +140,7 @@ fn conformance_region_routing() {
 fn conformance_retry_backoff() {
     let json_str = std::fs::read_to_string("../fixtures/conformance/retry-backoff/cases.json")
         .expect("retry-backoff fixtures must exist");
-    let cases: Vec<serde_json::Value> =
-        serde_json::from_str(&json_str).expect("valid JSON array");
+    let cases: Vec<serde_json::Value> = serde_json::from_str(&json_str).expect("valid JSON array");
 
     for case in &cases {
         let id = case["id"].as_str().unwrap();
@@ -161,11 +156,7 @@ fn conformance_retry_backoff() {
 
         if let Some(exact) = expect.get("exactDelayMs") {
             let delay = calculate_delay(attempt, retry_after_ms);
-            assert_eq!(
-                delay,
-                exact.as_u64().unwrap(),
-                "{id}: exact delay mismatch"
-            );
+            assert_eq!(delay, exact.as_u64().unwrap(), "{id}: exact delay mismatch");
         } else {
             let min_ms = expect["minDelayMs"].as_u64().unwrap();
             let max_ms = expect["maxDelayMs"].as_u64().unwrap();
@@ -187,8 +178,7 @@ fn conformance_retry_backoff() {
 fn conformance_signature() {
     let json_str = std::fs::read_to_string("../fixtures/conformance/signature/cases.json")
         .expect("signature fixtures must exist");
-    let cases: Vec<serde_json::Value> =
-        serde_json::from_str(&json_str).expect("valid JSON array");
+    let cases: Vec<serde_json::Value> = serde_json::from_str(&json_str).expect("valid JSON array");
 
     for case in &cases {
         let id = case["id"].as_str().unwrap();
@@ -233,8 +223,7 @@ fn conformance_signature() {
             "sign_with_original_verify_with_wrong" => {
                 let sig = compute_signature(secret, msg_id, timestamp, &payload);
                 let wrong_secret = input["wrongSecret"].as_str().unwrap();
-                let verified =
-                    verify_signature(wrong_secret, msg_id, timestamp, &payload, &sig);
+                let verified = verify_signature(wrong_secret, msg_id, timestamp, &payload, &sig);
                 assert_eq!(
                     verified,
                     expect["verifies"].as_bool().unwrap(),

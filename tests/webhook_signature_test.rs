@@ -2,16 +2,16 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-/// Webhook signature verification tests.
-///
-/// Validates that the Standard Webhooks signing format used by the Nahook API
-/// can be correctly produced and verified using native crypto.
-///
-/// Signing spec:
-///   base   = "{msgId}.{timestamp}.{payload}"
-///   key    = base64_decode(secret_without_whsec_prefix)
-///   sig    = "v1," + base64(HMAC-SHA256(key, base))
-///   headers: webhook-id, webhook-timestamp, webhook-signature
+// Webhook signature verification tests.
+//
+// Validates that the Standard Webhooks signing format used by the Nahook API
+// can be correctly produced and verified using native crypto.
+//
+// Signing spec:
+//   base   = "{msgId}.{timestamp}.{payload}"
+//   key    = base64_decode(secret_without_whsec_prefix)
+//   sig    = "v1," + base64(HMAC-SHA256(key, base))
+//   headers: webhook-id, webhook-timestamp, webhook-signature
 
 const TEST_SECRET: &str = "whsec_dGVzdF93ZWJob29rX3NpZ25pbmdfa2V5XzMyYnl0ZXMh";
 const MSG_ID: &str = "msg_test_sig_001";
@@ -21,12 +21,10 @@ const PAYLOAD: &str = r#"{"order_id":"ord_123","amount":49.99}"#;
 type HmacSha256 = Hmac<Sha256>;
 
 fn compute_signature(secret: &str, msg_id: &str, timestamp: &str, payload: &str) -> String {
-    let raw_secret = if secret.starts_with("whsec_") {
-        &secret[6..]
-    } else {
-        secret
-    };
-    let key = BASE64.decode(raw_secret).expect("secret must be valid base64");
+    let raw_secret = secret.strip_prefix("whsec_").unwrap_or(secret);
+    let key = BASE64
+        .decode(raw_secret)
+        .expect("secret must be valid base64");
 
     let to_sign = format!("{}.{}.{}", msg_id, timestamp, payload);
     let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can take key of any size");
@@ -40,7 +38,11 @@ fn compute_signature(secret: &str, msg_id: &str, timestamp: &str, payload: &str)
 fn test_produces_valid_v1_signature() {
     let sig = compute_signature(TEST_SECRET, MSG_ID, TIMESTAMP, PAYLOAD);
     let re = regex::Regex::new(r"^v1,[A-Za-z0-9+/]+=*$").unwrap();
-    assert!(re.is_match(&sig), "signature should match v1 format, got: {}", sig);
+    assert!(
+        re.is_match(&sig),
+        "signature should match v1 format, got: {}",
+        sig
+    );
 }
 
 #[test]
@@ -95,7 +97,9 @@ fn test_correct_headers_structure() {
 
     assert!(headers["webhook-id"].starts_with("msg_"));
     assert!(headers["webhook-signature"].starts_with("v1,"));
-    assert!(headers["webhook-timestamp"].chars().all(|c| c.is_ascii_digit()));
+    assert!(headers["webhook-timestamp"]
+        .chars()
+        .all(|c| c.is_ascii_digit()));
     assert_eq!(headers["content-type"], "application/json");
 }
 
@@ -121,6 +125,11 @@ fn test_empty_payload_produces_valid_signature() {
 
 #[test]
 fn test_unicode_payload_consistent_across_languages() {
-    let sig = compute_signature(TEST_SECRET, MSG_ID, TIMESTAMP, r#"{"name":"café","price":"€9.99"}"#);
+    let sig = compute_signature(
+        TEST_SECRET,
+        MSG_ID,
+        TIMESTAMP,
+        r#"{"name":"café","price":"€9.99"}"#,
+    );
     assert_eq!(sig, "v1,GcuGAMV9tELnF2rjay6sA8uo5PDPPlhaFi6gKUg06wQ=");
 }
