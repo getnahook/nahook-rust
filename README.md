@@ -166,6 +166,7 @@ async fn main() -> Result<(), nahook::NahookError> {
         config: None,
         auth_username: None,
         auth_password: None,
+        environment_id: None, // omit to use the workspace's default environment
     }).await?;
 
     // Create an event type

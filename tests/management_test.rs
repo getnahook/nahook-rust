@@ -405,6 +405,7 @@ async fn management_endpoints_create() {
                 config: None,
                 auth_username: None,
                 auth_password: None,
+                environment_id: None,
             },
         )
         .await

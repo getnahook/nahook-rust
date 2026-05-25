@@ -184,6 +184,10 @@ pub struct CreateEndpointOptions {
     pub auth_username: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_password: Option<String>,
+    /// Optional. Public id (e.g. `env_abc123`) of the environment to scope this
+    /// endpoint. If omitted, the workspace's default environment is used.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_id: Option<String>,
 }
 
 /// Options for updating an endpoint.

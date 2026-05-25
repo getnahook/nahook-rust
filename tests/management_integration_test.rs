@@ -186,6 +186,7 @@ async fn test_endpoints_crud() {
                 config: None,
                 auth_username: None,
                 auth_password: None,
+                environment_id: None,
             },
         )
         .await
@@ -394,6 +395,7 @@ async fn test_subscriptions_lifecycle() {
                 config: None,
                 auth_username: None,
                 auth_password: None,
+                environment_id: None,
             },
         )
         .await
