@@ -168,7 +168,7 @@ pub struct ListOptions {
 }
 
 /// Options for creating an endpoint.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateEndpointOptions {
     pub url: String,
@@ -191,7 +191,7 @@ pub struct CreateEndpointOptions {
 }
 
 /// Options for updating an endpoint.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateEndpointOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -205,7 +205,7 @@ pub struct UpdateEndpointOptions {
 }
 
 /// Options for creating an event type.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateEventTypeOptions {
     pub name: String,
@@ -214,7 +214,7 @@ pub struct CreateEventTypeOptions {
 }
 
 /// Options for updating an event type.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateEventTypeOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -222,7 +222,7 @@ pub struct UpdateEventTypeOptions {
 }
 
 /// Options for creating an application.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateApplicationOptions {
     pub name: String,
@@ -233,7 +233,7 @@ pub struct CreateApplicationOptions {
 }
 
 /// Options for updating an application.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateApplicationOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -243,7 +243,7 @@ pub struct UpdateApplicationOptions {
 }
 
 /// Options for creating subscriptions (subscribe to one or more event types).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateSubscriptionOptions {
     pub event_type_ids: Vec<String>,
@@ -262,7 +262,7 @@ pub struct Environment {
 }
 
 /// Options for creating an environment.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateEnvironmentOptions {
     pub name: String,
@@ -270,7 +270,7 @@ pub struct CreateEnvironmentOptions {
 }
 
 /// Options for updating an environment.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateEnvironmentOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -294,9 +294,12 @@ pub struct SetVisibilityOptions {
 }
 
 /// Options for creating a portal session.
-#[derive(Debug, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CreatePortalSessionOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "expiresInMinutes")]
+    pub expires_in_minutes: Option<i32>,
 }

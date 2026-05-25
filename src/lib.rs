@@ -41,6 +41,7 @@ pub mod resources;
 
 // Re-exports
 pub use error::NahookError;
+pub use types::{SendOptions, TriggerOptions};
 
 #[cfg(feature = "client")]
 pub use client::{NahookClient, NahookClientBuilder};
