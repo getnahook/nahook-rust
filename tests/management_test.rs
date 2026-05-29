@@ -1473,11 +1473,37 @@ fn payload_envelope_known_statuses_round_trip() {
             Some(expected_status),
             "round-trip failed for {input}",
         );
+        // For Available, also assert the data and contentType fields survive
+        // — the status assertion alone misses a symmetric data↔contentType
+        // swap in Serialize.
+        if expected_status == "available" {
+            assert_eq!(re_serialized["data"]["orderId"], "ord_1");
+            assert_eq!(re_serialized["contentType"], "application/json");
+        }
         // Re-deserializing the re-serialized form should yield the same
         // variant — ensures Serialize and Deserialize are inverses.
         let round_trip: PayloadEnvelope = serde_json::from_value(re_serialized).unwrap();
         // Use Debug equality via formatting (PayloadEnvelope doesn't impl PartialEq).
         assert_eq!(format!("{round_trip:?}"), format!("{envelope:?}"));
+    }
+}
+
+#[test]
+fn payload_envelope_unknown_status_round_trip_preserves_original_string() {
+    // Regression: an Unknown variant must serialize back to the original
+    // status string verbatim — not "unknown", not a debug repr. If the
+    // Serialize impl drifts to emit "unknown" literally, this catches it.
+    let unknown = PayloadEnvelope::Unknown {
+        status: "quarantined".to_string(),
+    };
+    let json = serde_json::to_string(&unknown).unwrap();
+    assert_eq!(json, r#"{"status":"quarantined"}"#);
+
+    // And deserializing the re-emitted form lands back in Unknown.
+    let round_trip: PayloadEnvelope = serde_json::from_str(&json).unwrap();
+    match round_trip {
+        PayloadEnvelope::Unknown { status } => assert_eq!(status, "quarantined"),
+        other => panic!("Expected Unknown after round-trip, got: {other:?}"),
     }
 }
 

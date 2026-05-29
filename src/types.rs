@@ -368,6 +368,12 @@ pub enum PayloadEnvelope {
     /// does not recognise. The original string is preserved so callers can
     /// log it or branch on it. A future SDK upgrade may add a stronger
     /// variant for any commonly-seen value.
+    ///
+    /// Note: any extra fields the server may send alongside `status` (e.g.
+    /// `reason`, `details`) are dropped on deserialize and not re-emitted
+    /// on serialize. If/when we need lossless preservation we'd extend this
+    /// variant with a `raw: serde_json::Value` field; until then, consumers
+    /// should treat Unknown as "log and move on".
     Unknown { status: String },
 }
 
