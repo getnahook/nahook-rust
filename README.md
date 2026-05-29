@@ -280,6 +280,10 @@ async fn main() -> Result<(), nahook::NahookError> {
         Some(PayloadEnvelope::Processing) => println!("Payload write still in flight"),
         Some(PayloadEnvelope::NotFound) => println!("No stored payload for this delivery"),
         Some(PayloadEnvelope::Error) => println!("Transient error retrieving payload"),
+        // Forward-compat: handles future server-side envelope statuses the SDK
+        // doesn't model yet. Treat as "log and move on" — when this fires, an
+        // SDK upgrade is likely available with a stronger variant.
+        Some(PayloadEnvelope::Unknown { status }) => println!("Unrecognised envelope status: {status}"),
         None => {}
     }
 
