@@ -836,7 +836,8 @@ async fn test_deliveries_get_with_include_payload_returns_envelope() {
         | PayloadEnvelope::Forbidden
         | PayloadEnvelope::Processing
         | PayloadEnvelope::NotFound
-        | PayloadEnvelope::Error => {}
+        | PayloadEnvelope::Error
+        | PayloadEnvelope::Unknown { .. } => {}
     }
 }
 

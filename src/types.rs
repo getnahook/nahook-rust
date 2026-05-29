@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
 // ── Client (ingestion) types ──
@@ -348,13 +348,11 @@ pub struct DeliveryAttempt {
 /// non-`Available` variants are not errors — they reflect plan gating,
 /// processing state, or absent payloads. The endpoint stays `200` for
 /// all variants.
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(tag = "status", rename_all = "snake_case")]
+#[derive(Debug, Clone)]
 pub enum PayloadEnvelope {
     /// Payload retrieved and decrypted.
     Available {
         data: serde_json::Value,
-        #[serde(rename = "contentType")]
         content_type: String,
     },
     /// Workspace plan does not include payload storage.
@@ -366,6 +364,99 @@ pub enum PayloadEnvelope {
     NotFound,
     /// Transient infrastructure failure retrieving the payload.
     Error,
+    /// Forward-compatibility variant: the server returned a `status` the SDK
+    /// does not recognise. The original string is preserved so callers can
+    /// log it or branch on it. A future SDK upgrade may add a stronger
+    /// variant for any commonly-seen value.
+    Unknown { status: String },
+}
+
+// Manual Deserialize impl — instead of `#[serde(tag = "status")]` which would
+// hard-fail on a new server-side status, we read the JSON object, dispatch
+// the known variants by name, and fall back to `Unknown { status }` for
+// anything else. Keeps the SDK from breaking the next time the server adds
+// an envelope status (e.g. `quarantined`).
+impl<'de> Deserialize<'de> for PayloadEnvelope {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let v = serde_json::Value::deserialize(deserializer)?;
+        let obj = v
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("envelope must be a JSON object"))?;
+        let status = obj
+            .get("status")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| serde::de::Error::missing_field("status"))?
+            .to_string();
+
+        match status.as_str() {
+            "available" => {
+                let data = obj
+                    .get("data")
+                    .cloned()
+                    .ok_or_else(|| serde::de::Error::missing_field("data"))?;
+                let content_type = obj
+                    .get("contentType")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| serde::de::Error::missing_field("contentType"))?
+                    .to_string();
+                Ok(PayloadEnvelope::Available { data, content_type })
+            }
+            "forbidden" => Ok(PayloadEnvelope::Forbidden),
+            "processing" => Ok(PayloadEnvelope::Processing),
+            "not_found" => Ok(PayloadEnvelope::NotFound),
+            "error" => Ok(PayloadEnvelope::Error),
+            _ => Ok(PayloadEnvelope::Unknown { status }),
+        }
+    }
+}
+
+// Manual Serialize impl — mirrors the previous tagged behaviour for the known
+// variants. `Unknown { status }` emits the original status string verbatim
+// so callers that capture and re-emit envelopes don't lose information.
+impl Serialize for PayloadEnvelope {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeMap;
+        match self {
+            PayloadEnvelope::Available { data, content_type } => {
+                let mut map = serializer.serialize_map(Some(3))?;
+                map.serialize_entry("status", "available")?;
+                map.serialize_entry("data", data)?;
+                map.serialize_entry("contentType", content_type)?;
+                map.end()
+            }
+            PayloadEnvelope::Forbidden => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("status", "forbidden")?;
+                map.end()
+            }
+            PayloadEnvelope::Processing => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("status", "processing")?;
+                map.end()
+            }
+            PayloadEnvelope::NotFound => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("status", "not_found")?;
+                map.end()
+            }
+            PayloadEnvelope::Error => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("status", "error")?;
+                map.end()
+            }
+            PayloadEnvelope::Unknown { status } => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("status", status)?;
+                map.end()
+            }
+        }
+    }
 }
 
 /// A [`Delivery`] optionally enriched with its decrypted payload envelope.

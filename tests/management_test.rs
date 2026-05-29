@@ -1433,6 +1433,54 @@ async fn get_attempts_returns_array() {
     assert_eq!(attempts[1].error_message, None);
 }
 
+// ── PayloadEnvelope forward-compatibility (NAH-163) ──
+
+#[test]
+fn payload_envelope_unknown_status_preserves_status_string() {
+    // Simulate the server adding a sixth envelope status the SDK doesn't
+    // know about. The strict tagged-enum derive would have failed here;
+    // the manual impl maps it to Unknown { status } and preserves the
+    // original string for callers to log or branch on.
+    let json_str = r#"{"status": "quarantined"}"#;
+    let envelope: PayloadEnvelope = serde_json::from_str(json_str).unwrap();
+    match envelope {
+        PayloadEnvelope::Unknown { status } => assert_eq!(status, "quarantined"),
+        other => panic!("Expected Unknown {{ status: \"quarantined\" }}, got: {other:?}"),
+    }
+}
+
+#[test]
+fn payload_envelope_known_statuses_round_trip() {
+    // Regression: each known variant must serialize to the same wire shape
+    // the server produces, and re-deserialize to the same variant. Catches
+    // the case where the manual Serialize impl drifts from the original
+    // tagged behaviour.
+    let cases = [
+        (
+            r#"{"status":"available","data":{"orderId":"ord_1"},"contentType":"application/json"}"#,
+            "available",
+        ),
+        (r#"{"status":"forbidden"}"#, "forbidden"),
+        (r#"{"status":"processing"}"#, "processing"),
+        (r#"{"status":"not_found"}"#, "not_found"),
+        (r#"{"status":"error"}"#, "error"),
+    ];
+    for (input, expected_status) in cases {
+        let envelope: PayloadEnvelope = serde_json::from_str(input).unwrap();
+        let re_serialized = serde_json::to_value(&envelope).unwrap();
+        assert_eq!(
+            re_serialized["status"].as_str(),
+            Some(expected_status),
+            "round-trip failed for {input}",
+        );
+        // Re-deserializing the re-serialized form should yield the same
+        // variant — ensures Serialize and Deserialize are inverses.
+        let round_trip: PayloadEnvelope = serde_json::from_value(re_serialized).unwrap();
+        // Use Debug equality via formatting (PayloadEnvelope doesn't impl PartialEq).
+        assert_eq!(format!("{round_trip:?}"), format!("{envelope:?}"));
+    }
+}
+
 // ── Error type helpers ──
 
 #[test]
