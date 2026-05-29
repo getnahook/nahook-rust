@@ -1,8 +1,9 @@
 use nahook::types::{
     CreateApplicationOptions, CreateEndpointOptions, CreateEnvironmentOptions,
     CreateEventTypeOptions, CreateSubscriptionOptions, CreateSubscriptionResult,
-    SetVisibilityOptions, UpdateApplicationOptions, UpdateEndpointOptions,
-    UpdateEnvironmentOptions, UpdateEventTypeOptions,
+    GetDeliveryOptions, ListDeliveriesOptions, PayloadEnvelope, SetVisibilityOptions,
+    UpdateApplicationOptions, UpdateEndpointOptions, UpdateEnvironmentOptions,
+    UpdateEventTypeOptions,
 };
 use nahook::{NahookError, NahookManagement};
 
@@ -692,6 +693,197 @@ async fn test_event_type_visibility() {
         .delete(ws, &event_type.id)
         .await
         .expect("cleanup: delete event type should succeed");
+}
+
+// ── Deliveries (reads against pre-seeded fixture rows) ──
+//
+// Fixture data lives in packages/db/src/seeds/test-fixtures.sql:
+//   del_fixture_001 — delivered, hasPayload=true
+//   del_fixture_002 — failed, 3 attempts, hasPayload=false
+//   del_fixture_003 — delivering, hasPayload=false
+// All three are scoped to ep_integration_test_001.
+
+#[tokio::test]
+async fn test_deliveries_list_with_limit_returns_seeded_rows_and_opaque_cursor() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+
+    let result = mgmt
+        .deliveries()
+        .list(
+            &cfg.workspace_id,
+            "ep_integration_test_001",
+            Some(ListDeliveriesOptions {
+                limit: Some(2),
+                cursor: None,
+                status: None,
+            }),
+        )
+        .await
+        .expect("list deliveries should succeed");
+
+    assert_eq!(
+        result.data.len(),
+        2,
+        "should return 2 deliveries with limit=2"
+    );
+    // With 3 fixture rows and limit=2, expect a non-null nextCursor that does
+    // not leak the publicId format.
+    let cursor = result
+        .next_cursor
+        .as_ref()
+        .expect("nextCursor should be present when more pages remain");
+    assert!(
+        !cursor.starts_with("del_"),
+        "cursor should be opaque, not a publicId, got: {cursor}"
+    );
+}
+
+#[tokio::test]
+async fn test_deliveries_list_with_status_failed_returns_one_fixture() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+
+    let result = mgmt
+        .deliveries()
+        .list(
+            &cfg.workspace_id,
+            "ep_integration_test_001",
+            Some(ListDeliveriesOptions {
+                limit: None,
+                cursor: None,
+                status: Some("failed".to_string()),
+            }),
+        )
+        .await
+        .expect("list deliveries with status filter should succeed");
+
+    assert_eq!(
+        result.data.len(),
+        1,
+        "should return exactly 1 failed delivery"
+    );
+    let failed = &result.data[0];
+    assert_eq!(failed.id, "del_fixture_002");
+    assert_eq!(failed.status, "failed");
+    assert_eq!(failed.total_attempts, 3);
+    assert!(!failed.has_payload);
+}
+
+#[tokio::test]
+async fn test_deliveries_get_returns_metadata_without_payload_by_default() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+
+    let delivery = mgmt
+        .deliveries()
+        .get(&cfg.workspace_id, "del_fixture_001", None)
+        .await
+        .expect("get delivery should succeed");
+
+    assert_eq!(delivery.id, "del_fixture_001");
+    assert_eq!(delivery.endpoint_id, "ep_integration_test_001");
+    assert_eq!(delivery.status, "delivered");
+    assert!(delivery.has_payload);
+    assert!(
+        delivery.payload.is_none(),
+        "payload should be absent when include_payload=false"
+    );
+}
+
+#[tokio::test]
+async fn test_deliveries_get_with_include_payload_returns_envelope() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+
+    let delivery = mgmt
+        .deliveries()
+        .get(
+            &cfg.workspace_id,
+            "del_fixture_001",
+            Some(GetDeliveryOptions {
+                include_payload: true,
+            }),
+        )
+        .await
+        .expect("get delivery with payload should succeed");
+
+    // R2 may not be wired in the test infra, so the envelope can legitimately
+    // report any of the 5 valid states. We accept all variants of
+    // PayloadEnvelope here — exhaustive match keeps this honest if a new
+    // variant is added.
+    let payload = delivery
+        .payload
+        .expect("payload envelope should be present when include_payload=true");
+    match payload {
+        PayloadEnvelope::Available { .. }
+        | PayloadEnvelope::Forbidden
+        | PayloadEnvelope::Processing
+        | PayloadEnvelope::NotFound
+        | PayloadEnvelope::Error => {}
+    }
+}
+
+#[tokio::test]
+async fn test_deliveries_get_attempts_returns_three_in_chronological_order() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+
+    let attempts = mgmt
+        .deliveries()
+        .get_attempts(&cfg.workspace_id, "del_fixture_002")
+        .await
+        .expect("get attempts should succeed");
+
+    assert_eq!(attempts.len(), 3, "fixture should have exactly 3 attempts");
+    assert_eq!(attempts[0].attempt_number, 1);
+    assert_eq!(attempts[1].attempt_number, 2);
+    assert_eq!(attempts[2].attempt_number, 3);
+    assert_eq!(attempts[0].response_status_code, Some(502));
+}
+
+#[tokio::test]
+async fn test_deliveries_get_returns_404_for_missing_delivery() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+
+    let err = mgmt
+        .deliveries()
+        .get(&cfg.workspace_id, "del_does_not_exist_anywhere", None)
+        .await
+        .expect_err("get non-existent delivery should fail");
+
+    match &err {
+        NahookError::Api(api_err) => {
+            assert_eq!(api_err.status, 404, "expected 404 for missing delivery");
+            assert!(api_err.is_not_found());
+        }
+        other => panic!("expected NahookError::Api, got: {:?}", other),
+    }
 }
 
 // ── Error tests ──

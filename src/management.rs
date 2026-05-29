@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::error::NahookError;
 use crate::http_client::{HttpClient, HttpClientConfig};
 use crate::resources::applications::ApplicationsResource;
+use crate::resources::deliveries::DeliveriesResource;
 use crate::resources::endpoints::EndpointsResource;
 use crate::resources::environments::EnvironmentsResource;
 use crate::resources::event_types::EventTypesResource;
@@ -134,5 +135,10 @@ impl NahookManagement {
     /// Access the portal sessions resource.
     pub fn portal_sessions(&self) -> PortalSessionsResource<'_> {
         PortalSessionsResource { http: &self.http }
+    }
+
+    /// Access the deliveries resource.
+    pub fn deliveries(&self) -> DeliveriesResource<'_> {
+        DeliveriesResource { http: &self.http }
     }
 }

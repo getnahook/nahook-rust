@@ -303,3 +303,122 @@ pub struct CreatePortalSessionOptions {
     #[serde(skip_serializing_if = "Option::is_none", rename = "expiresInMinutes")]
     pub expires_in_minutes: Option<i32>,
 }
+
+// ── Deliveries ──
+
+/// A webhook delivery's status and metadata. Read-only — deliveries are
+/// created by the ingestion API, never directly through the management API.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Delivery {
+    pub id: String,
+    pub idempotency_key: String,
+    pub endpoint_id: String,
+    pub status: String,
+    pub total_attempts: u32,
+    pub first_attempt_at: Option<String>,
+    pub delivered_at: Option<String>,
+    pub next_retry_at: Option<String>,
+    pub has_payload: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// A single HTTP attempt against a delivery's endpoint. Returned in
+/// chronological order (oldest first).
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeliveryAttempt {
+    pub id: String,
+    pub attempt_number: u32,
+    /// Opaque outcome string emitted by the delivery worker (e.g.
+    /// `"failed"`, `"success"`). Treat as a free-form string — the set is
+    /// not enumerated and may evolve.
+    pub status: String,
+    pub response_status_code: Option<u16>,
+    pub response_time_ms: Option<u64>,
+    pub error_message: Option<String>,
+    pub created_at: String,
+}
+
+/// Envelope wrapping the optional decrypted payload returned by
+/// [`DeliveriesResource::get`] when `include_payload` is requested.
+///
+/// The envelope's variant describes whether the payload was retrievable;
+/// non-`Available` variants are not errors — they reflect plan gating,
+/// processing state, or absent payloads. The endpoint stays `200` for
+/// all variants.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum PayloadEnvelope {
+    /// Payload retrieved and decrypted.
+    Available {
+        data: serde_json::Value,
+        #[serde(rename = "contentType")]
+        content_type: String,
+    },
+    /// Workspace plan does not include payload storage.
+    Forbidden,
+    /// Delivery still in flight; payload write may be racing the read.
+    Processing,
+    /// Terminal delivery without a stored payload (older row or plan was
+    /// lower at ingest time).
+    NotFound,
+    /// Transient infrastructure failure retrieving the payload.
+    Error,
+}
+
+/// A [`Delivery`] optionally enriched with its decrypted payload envelope.
+///
+/// `payload` is `None` when the caller did not request `include_payload`,
+/// and `Some(envelope)` otherwise — see [`PayloadEnvelope`] for the
+/// possible states.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeliveryWithPayload {
+    pub id: String,
+    pub idempotency_key: String,
+    pub endpoint_id: String,
+    pub status: String,
+    pub total_attempts: u32,
+    pub first_attempt_at: Option<String>,
+    pub delivered_at: Option<String>,
+    pub next_retry_at: Option<String>,
+    pub has_payload: bool,
+    pub created_at: String,
+    pub updated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<PayloadEnvelope>,
+}
+
+/// Cursor-paginated result. The cursor is an opaque token — pass
+/// [`Self::next_cursor`] verbatim into the next call's
+/// `cursor` option; do not decode or modify it. `next_cursor` is
+/// `None` when there are no more pages.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PaginatedResult<T> {
+    pub data: Vec<T>,
+    pub next_cursor: Option<String>,
+}
+
+/// Options for [`crate::resources::deliveries::DeliveriesResource::list`].
+#[derive(Debug, Clone, Default)]
+pub struct ListDeliveriesOptions {
+    /// Server-side default is 50, max 100. Omit to use the default.
+    pub limit: Option<u32>,
+    /// Opaque cursor from a previous [`PaginatedResult::next_cursor`].
+    pub cursor: Option<String>,
+    /// Filter by status: `pending`, `delivering`, `delivered`,
+    /// `scheduled_retry`, `failed`, or `dead_letter`.
+    pub status: Option<String>,
+}
+
+/// Options for [`crate::resources::deliveries::DeliveriesResource::get`].
+#[derive(Debug, Clone, Default)]
+pub struct GetDeliveryOptions {
+    /// When `true`, request the decrypted payload via the
+    /// `?include=payload` query param. The response will populate
+    /// [`DeliveryWithPayload::payload`] with a [`PayloadEnvelope`].
+    pub include_payload: bool,
+}

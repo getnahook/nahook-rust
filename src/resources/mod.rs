@@ -1,4 +1,5 @@
 pub mod applications;
+pub mod deliveries;
 pub mod endpoints;
 pub mod environments;
 pub mod event_types;

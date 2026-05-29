@@ -1076,6 +1076,363 @@ async fn management_environments_set_event_type_visibility() {
     assert!(result.published);
 }
 
+// ── Management: deliveries ──
+
+#[tokio::test]
+async fn list_returns_paginated_data_and_next_cursor() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/management/v1/workspaces/ws_abc/endpoints/ep_1/deliveries",
+        ))
+        .and(header("authorization", "Bearer nhm_test123"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "deliveries": [
+                {
+                    "id": "del_a",
+                    "idempotencyKey": "k1",
+                    "endpointId": "ep_1",
+                    "status": "delivered",
+                    "totalAttempts": 1,
+                    "firstAttemptAt": "2026-05-28T14:30:59Z",
+                    "deliveredAt": "2026-05-28T14:30:59Z",
+                    "nextRetryAt": null,
+                    "hasPayload": true,
+                    "createdAt": "2026-05-28T14:30:59Z",
+                    "updatedAt": "2026-05-28T14:30:59Z"
+                },
+                {
+                    "id": "del_b",
+                    "idempotencyKey": "k2",
+                    "endpointId": "ep_1",
+                    "status": "failed",
+                    "totalAttempts": 3,
+                    "firstAttemptAt": "2026-05-28T14:31:00Z",
+                    "deliveredAt": null,
+                    "nextRetryAt": null,
+                    "hasPayload": false,
+                    "createdAt": "2026-05-28T14:31:00Z",
+                    "updatedAt": "2026-05-28T14:31:00Z"
+                }
+            ],
+            "nextCursor": "opaque-token-aaa"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .deliveries()
+        .list("ws_abc", "ep_1", None)
+        .await
+        .unwrap();
+
+    assert_eq!(result.data.len(), 2);
+    assert_eq!(result.data[0].id, "del_a");
+    assert_eq!(result.data[1].id, "del_b");
+    assert_eq!(result.next_cursor.as_deref(), Some("opaque-token-aaa"));
+}
+
+#[tokio::test]
+async fn list_returns_null_cursor_when_last_page() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/management/v1/workspaces/ws_abc/endpoints/ep_1/deliveries",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "deliveries": [],
+            "nextCursor": null
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .deliveries()
+        .list("ws_abc", "ep_1", None)
+        .await
+        .unwrap();
+
+    assert!(result.data.is_empty());
+    assert!(result.next_cursor.is_none());
+}
+
+#[tokio::test]
+async fn list_forwards_query_params() {
+    use wiremock::matchers::query_param;
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/management/v1/workspaces/ws_abc/endpoints/ep_1/deliveries",
+        ))
+        .and(query_param("limit", "25"))
+        .and(query_param("cursor", "opaque-token-xyz"))
+        .and(query_param("status", "failed"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "deliveries": [],
+            "nextCursor": null
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    mgmt.deliveries()
+        .list(
+            "ws_abc",
+            "ep_1",
+            Some(ListDeliveriesOptions {
+                limit: Some(25),
+                cursor: Some("opaque-token-xyz".to_string()),
+                status: Some("failed".to_string()),
+            }),
+        )
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn list_omits_unset_query_params() {
+    use wiremock::matchers::query_param_is_missing;
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/management/v1/workspaces/ws_abc/endpoints/ep_1/deliveries",
+        ))
+        .and(query_param_is_missing("limit"))
+        .and(query_param_is_missing("cursor"))
+        .and(query_param_is_missing("status"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "deliveries": [],
+            "nextCursor": null
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    mgmt.deliveries()
+        .list("ws_abc", "ep_1", None)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn get_returns_metadata_without_envelope_by_default() {
+    use wiremock::matchers::query_param_is_missing;
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/management/v1/workspaces/ws_abc/deliveries/del_a"))
+        .and(query_param_is_missing("include"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "del_a",
+            "idempotencyKey": "k1",
+            "endpointId": "ep_1",
+            "status": "delivered",
+            "totalAttempts": 1,
+            "firstAttemptAt": "2026-05-28T14:30:59Z",
+            "deliveredAt": "2026-05-28T14:30:59Z",
+            "nextRetryAt": null,
+            "hasPayload": true,
+            "createdAt": "2026-05-28T14:30:59Z",
+            "updatedAt": "2026-05-28T14:30:59Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let delivery = mgmt
+        .deliveries()
+        .get("ws_abc", "del_a", None)
+        .await
+        .unwrap();
+
+    assert_eq!(delivery.id, "del_a");
+    assert!(delivery.has_payload);
+    assert!(delivery.payload.is_none());
+}
+
+#[tokio::test]
+async fn get_with_include_payload_returns_envelope() {
+    use wiremock::matchers::query_param;
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/management/v1/workspaces/ws_abc/deliveries/del_a"))
+        .and(query_param("include", "payload"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "del_a",
+            "idempotencyKey": "k1",
+            "endpointId": "ep_1",
+            "status": "delivered",
+            "totalAttempts": 1,
+            "firstAttemptAt": "2026-05-28T14:30:59Z",
+            "deliveredAt": "2026-05-28T14:30:59Z",
+            "nextRetryAt": null,
+            "hasPayload": true,
+            "createdAt": "2026-05-28T14:30:59Z",
+            "updatedAt": "2026-05-28T14:30:59Z",
+            "payload": {
+                "status": "available",
+                "data": { "orderId": "ord_123" },
+                "contentType": "application/json"
+            }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let delivery = mgmt
+        .deliveries()
+        .get(
+            "ws_abc",
+            "del_a",
+            Some(GetDeliveryOptions {
+                include_payload: true,
+            }),
+        )
+        .await
+        .unwrap();
+
+    match delivery.payload {
+        Some(PayloadEnvelope::Available { data, content_type }) => {
+            assert_eq!(data, json!({ "orderId": "ord_123" }));
+            assert_eq!(content_type, "application/json");
+        }
+        other => panic!("Expected Available envelope, got: {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn get_returns_forbidden_envelope_for_plan_gated_workspace() {
+    use wiremock::matchers::query_param;
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/management/v1/workspaces/ws_abc/deliveries/del_a"))
+        .and(query_param("include", "payload"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "del_a",
+            "idempotencyKey": "k1",
+            "endpointId": "ep_1",
+            "status": "delivered",
+            "totalAttempts": 1,
+            "firstAttemptAt": null,
+            "deliveredAt": "2026-05-28T14:30:59Z",
+            "nextRetryAt": null,
+            "hasPayload": true,
+            "createdAt": "2026-05-28T14:30:59Z",
+            "updatedAt": "2026-05-28T14:30:59Z",
+            "payload": { "status": "forbidden" }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let delivery = mgmt
+        .deliveries()
+        .get(
+            "ws_abc",
+            "del_a",
+            Some(GetDeliveryOptions {
+                include_payload: true,
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert!(matches!(delivery.payload, Some(PayloadEnvelope::Forbidden)));
+}
+
+#[tokio::test]
+async fn get_attempts_returns_array() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/management/v1/workspaces/ws_abc/deliveries/del_a/attempts",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {
+                "id": "att_1",
+                "attemptNumber": 1,
+                "status": "failed",
+                "responseStatusCode": 502,
+                "responseTimeMs": 142,
+                "errorMessage": "Bad gateway",
+                "createdAt": "2026-05-28T14:31:00Z"
+            },
+            {
+                "id": "att_2",
+                "attemptNumber": 2,
+                "status": "success",
+                "responseStatusCode": 200,
+                "responseTimeMs": 88,
+                "errorMessage": null,
+                "createdAt": "2026-05-28T14:31:30Z"
+            }
+        ])))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let attempts = mgmt
+        .deliveries()
+        .get_attempts("ws_abc", "del_a")
+        .await
+        .unwrap();
+
+    assert_eq!(attempts.len(), 2);
+    assert_eq!(attempts[0].attempt_number, 1);
+    assert_eq!(attempts[0].response_status_code, Some(502));
+    assert_eq!(attempts[1].status, "success");
+    assert_eq!(attempts[1].error_message, None);
+}
+
 // ── Error type helpers ──
 
 #[test]

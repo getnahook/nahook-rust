@@ -228,6 +228,68 @@ let mgmt = NahookManagement::builder("nhm_your_token")
     .build()?;
 ```
 
+### Deliveries
+
+Read access to webhook delivery state, attempts, and (on Pro and above) the original decrypted payload.
+
+```rust
+use nahook::NahookManagement;
+use nahook::types::{GetDeliveryOptions, ListDeliveriesOptions, PayloadEnvelope};
+
+#[tokio::main]
+async fn main() -> Result<(), nahook::NahookError> {
+    let mgmt = NahookManagement::new("nhm_your_token")?;
+
+    // Paginated list, newest-first. `next_cursor` is an opaque encrypted
+    // token — pass it back verbatim, do not decode or modify it.
+    let page = mgmt.deliveries().list("ws_abc", "ep_123", Some(ListDeliveriesOptions {
+        limit: Some(50),
+        cursor: None,
+        status: None,
+    })).await?;
+    // page.data        -> Vec<Delivery>
+    // page.next_cursor -> Option<String>
+
+    if let Some(cursor) = page.next_cursor.clone() {
+        let _next = mgmt.deliveries().list("ws_abc", "ep_123", Some(ListDeliveriesOptions {
+            cursor: Some(cursor),
+            ..Default::default()
+        })).await?;
+    }
+
+    // Filter by status
+    let _failed = mgmt.deliveries().list("ws_abc", "ep_123", Some(ListDeliveriesOptions {
+        status: Some("failed".to_string()),
+        ..Default::default()
+    })).await?;
+
+    // Get a single delivery's status + metadata (no payload envelope)
+    let _delivery = mgmt.deliveries().get("ws_abc", "del_xyz", None).await?;
+
+    // Get a delivery with its decrypted payload. The response wraps the body in
+    // an envelope whose variant describes whether the payload is available,
+    // gated by plan (`Forbidden`), still in flight (`Processing`), or absent.
+    let with_payload = mgmt.deliveries().get("ws_abc", "del_xyz", Some(GetDeliveryOptions {
+        include_payload: true,
+    })).await?;
+    match with_payload.payload {
+        Some(PayloadEnvelope::Available { data, .. }) => {
+            println!("Payload: {data}"); // the original webhook body
+        }
+        Some(PayloadEnvelope::Forbidden) => println!("Plan does not include payload storage"),
+        Some(PayloadEnvelope::Processing) => println!("Payload write still in flight"),
+        Some(PayloadEnvelope::NotFound) => println!("No stored payload for this delivery"),
+        Some(PayloadEnvelope::Error) => println!("Transient error retrieving payload"),
+        None => {}
+    }
+
+    // List the attempt history for a delivery
+    let _attempts = mgmt.deliveries().get_attempts("ws_abc", "del_xyz").await?;
+
+    Ok(())
+}
+```
+
 ## Error Handling
 
 ```rust
