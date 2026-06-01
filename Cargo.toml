@@ -1,6 +1,6 @@
 [package]
 name = "nahook"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Official Rust SDK for the Nahook webhook platform"
 license = "MIT"
