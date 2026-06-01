@@ -160,13 +160,8 @@ async fn main() -> Result<(), nahook::NahookError> {
     // Create an endpoint
     let new_ep = mgmt.endpoints().create("ws_abc123", CreateEndpointOptions {
         url: "https://example.com/webhook".to_string(),
-        endpoint_type: None,
         description: Some("Order notifications".to_string()),
-        metadata: None,
-        config: None,
-        auth_username: None,
-        auth_password: None,
-        environment_id: None, // omit to use the workspace's default environment
+        ..Default::default()
     }).await?;
 
     // Create an event type
