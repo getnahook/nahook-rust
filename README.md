@@ -157,7 +157,9 @@ async fn main() -> Result<(), nahook::NahookError> {
         println!("{}: {} (active: {})", ep.id, ep.url, ep.is_active);
     }
 
-    // Create an endpoint
+    // Create an endpoint. Omit environment_id (and any other Option<…> field)
+    // to fall back to the SDK / API defaults — the workspace's default
+    // environment is used when environment_id is None.
     let new_ep = mgmt.endpoints().create("ws_abc123", CreateEndpointOptions {
         url: "https://example.com/webhook".to_string(),
         description: Some("Order notifications".to_string()),
