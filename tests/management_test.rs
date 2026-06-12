@@ -695,6 +695,51 @@ async fn management_applications_list_endpoints() {
 // ── Management: applications — maxEndpoints + showEventTypes (tri-state) ──
 
 #[tokio::test]
+async fn management_applications_create_omits_unset_cap_fields() {
+    let server = MockServer::start().await;
+
+    // Exact body match: a create with neither cap field set must send
+    // exactly {"name": ...} — named here so the coverage survives even if
+    // the base create test's matcher is ever loosened.
+    Mock::given(method("POST"))
+        .and(path("/management/v1/workspaces/ws_123/applications"))
+        .and(body_json(json!({
+            "name": "Plain App"
+        })))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "id": "app_new",
+            "externalId": null,
+            "name": "Plain App",
+            "metadata": {},
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .applications()
+        .create(
+            "ws_123",
+            CreateApplicationOptions {
+                name: "Plain App".to_string(),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.max_endpoints, None);
+    assert!(result.show_event_types);
+}
+
+#[tokio::test]
 async fn management_applications_create_with_max_endpoints() {
     let server = MockServer::start().await;
 
