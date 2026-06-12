@@ -370,6 +370,203 @@ async fn test_applications_crud() {
     }
 }
 
+// ── Applications max_endpoints cap lifecycle ──
+
+#[tokio::test]
+async fn applications_max_endpoints_cap_lifecycle() {
+    let cfg = match load_config() {
+        Some(c) => c,
+        None => return,
+    };
+
+    let mgmt = build_mgmt(&cfg.api_url, &cfg.mgmt_token);
+    let ws = &cfg.workspace_id;
+    let suffix = unique_suffix();
+    let app_name = format!("Cap Test App {}", suffix);
+
+    // I1: create with max_endpoints=2 and show_event_types=false
+    let created = mgmt
+        .applications()
+        .create(
+            ws,
+            CreateApplicationOptions {
+                name: app_name,
+                max_endpoints: Some(2),
+                show_event_types: Some(false),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("create application with cap should succeed");
+
+    assert_eq!(
+        created.max_endpoints,
+        Some(2),
+        "created application should echo maxEndpoints=2"
+    );
+    assert!(
+        !created.show_event_types,
+        "created application should echo showEventTypes=false"
+    );
+
+    let fetched = mgmt
+        .applications()
+        .get(ws, &created.id)
+        .await
+        .expect("get application should succeed");
+
+    assert_eq!(
+        fetched.max_endpoints,
+        Some(2),
+        "fetched application should persist maxEndpoints=2"
+    );
+    assert!(
+        !fetched.show_event_types,
+        "fetched application should persist showEventTypes=false"
+    );
+
+    // I2: update to max_endpoints=1 and show_event_types=true
+    let updated = mgmt
+        .applications()
+        .update(
+            ws,
+            &created.id,
+            UpdateApplicationOptions {
+                max_endpoints: Some(Some(1)),
+                show_event_types: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("update application cap should succeed");
+
+    assert_eq!(
+        updated.max_endpoints,
+        Some(1),
+        "update response should echo maxEndpoints=1"
+    );
+    assert!(
+        updated.show_event_types,
+        "update response should echo showEventTypes=true"
+    );
+
+    let fetched = mgmt
+        .applications()
+        .get(ws, &created.id)
+        .await
+        .expect("get application after update should succeed");
+
+    assert_eq!(
+        fetched.max_endpoints,
+        Some(1),
+        "fetched application should persist maxEndpoints=1"
+    );
+    assert!(
+        fetched.show_event_types,
+        "fetched application should persist showEventTypes=true"
+    );
+
+    let endpoint_opts = || CreateEndpointOptions {
+        url: "https://httpbin.org/post".to_string(),
+        endpoint_type: None,
+        description: Some("max_endpoints cap test endpoint".to_string()),
+        metadata: None,
+        config: None,
+        auth_username: None,
+        auth_password: None,
+        environment_id: None,
+    };
+
+    // I3: first endpoint fits under cap=1; second must be rejected with 403
+    let ep1 = mgmt
+        .applications()
+        .create_endpoint(ws, &created.id, endpoint_opts())
+        .await
+        .expect("first endpoint under cap=1 should succeed");
+
+    let err = mgmt
+        .applications()
+        .create_endpoint(ws, &created.id, endpoint_opts())
+        .await
+        .expect_err("second endpoint should exceed cap=1");
+
+    match &err {
+        NahookError::Api(api_err) => {
+            assert_eq!(api_err.status, 403, "expected 403 when cap is exceeded");
+            assert_eq!(
+                api_err.code, "application_endpoint_limit_reached",
+                "expected application_endpoint_limit_reached code"
+            );
+        }
+        other => panic!("expected NahookError::Api, got: {:?}", other),
+    }
+
+    // I4: disabled endpoints still count toward the cap
+    mgmt.endpoints()
+        .update(
+            ws,
+            &ep1.id,
+            UpdateEndpointOptions {
+                url: None,
+                description: None,
+                metadata: None,
+                is_active: Some(false),
+            },
+        )
+        .await
+        .expect("disable endpoint should succeed");
+
+    let err = mgmt
+        .applications()
+        .create_endpoint(ws, &created.id, endpoint_opts())
+        .await
+        .expect_err("create after disabling endpoint 1 should still exceed cap=1");
+
+    match &err {
+        NahookError::Api(api_err) => {
+            assert_eq!(
+                api_err.status, 403,
+                "expected 403 — disabled endpoints count toward the cap"
+            );
+            assert_eq!(
+                api_err.code, "application_endpoint_limit_reached",
+                "expected application_endpoint_limit_reached code"
+            );
+        }
+        other => panic!("expected NahookError::Api, got: {:?}", other),
+    }
+
+    // I5: clear the cap with an explicit null — creates succeed again
+    let cleared = mgmt
+        .applications()
+        .update(
+            ws,
+            &created.id,
+            UpdateApplicationOptions {
+                max_endpoints: Some(None),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("clearing cap should succeed");
+
+    assert_eq!(
+        cleared.max_endpoints, None,
+        "cap should be cleared to unlimited"
+    );
+
+    let ep2 = mgmt
+        .applications()
+        .create_endpoint(ws, &created.id, endpoint_opts())
+        .await
+        .expect("endpoint create should succeed after clearing cap");
+
+    // Cleanup: best-effort, ignore failures
+    let _ = mgmt.endpoints().delete(ws, &ep1.id).await;
+    let _ = mgmt.endpoints().delete(ws, &ep2.id).await;
+    let _ = mgmt.applications().delete(ws, &created.id).await;
+}
+
 // ── Subscriptions Lifecycle ──
 
 #[tokio::test]
