@@ -644,8 +644,7 @@ async fn management_applications_create() {
             "ws_123",
             CreateApplicationOptions {
                 name: "New App".to_string(),
-                external_id: None,
-                metadata: None,
+                ..Default::default()
             },
         )
         .await
@@ -691,6 +690,278 @@ async fn management_applications_list_endpoints() {
 
     assert_eq!(result.data.len(), 1);
     assert_eq!(result.data[0].id, "ep_in_app");
+}
+
+// ── Management: applications — maxEndpoints + showEventTypes (tri-state) ──
+
+#[tokio::test]
+async fn management_applications_create_with_max_endpoints() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/management/v1/workspaces/ws_123/applications"))
+        .and(body_json(json!({
+            "name": "Capped App",
+            "maxEndpoints": 2
+        })))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "id": "app_new",
+            "externalId": null,
+            "name": "Capped App",
+            "metadata": {},
+            "maxEndpoints": 2,
+            "showEventTypes": true,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .applications()
+        .create(
+            "ws_123",
+            CreateApplicationOptions {
+                name: "Capped App".to_string(),
+                max_endpoints: Some(2),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.max_endpoints, Some(2));
+    assert!(result.show_event_types);
+}
+
+#[tokio::test]
+async fn management_applications_create_with_show_event_types_false() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/management/v1/workspaces/ws_123/applications"))
+        .and(body_json(json!({
+            "name": "Hidden App",
+            "showEventTypes": false
+        })))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "id": "app_new",
+            "externalId": null,
+            "name": "Hidden App",
+            "metadata": {},
+            "maxEndpoints": null,
+            "showEventTypes": false,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .applications()
+        .create(
+            "ws_123",
+            CreateApplicationOptions {
+                name: "Hidden App".to_string(),
+                show_event_types: Some(false),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.max_endpoints, None);
+    assert!(!result.show_event_types);
+}
+
+#[tokio::test]
+async fn management_applications_update_max_endpoints_explicit_null() {
+    let server = MockServer::start().await;
+
+    // Some(None) must serialize as an explicit JSON null (clears the cap);
+    // body_json is an exact match, so this also pins that nothing else leaks in.
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/applications/app_abc",
+        ))
+        .and(body_json(json!({
+            "maxEndpoints": null
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "app_abc",
+            "externalId": null,
+            "name": "My App",
+            "metadata": {},
+            "maxEndpoints": null,
+            "showEventTypes": true,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .applications()
+        .update(
+            "ws_123",
+            "app_abc",
+            UpdateApplicationOptions {
+                max_endpoints: Some(None),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.max_endpoints, None);
+}
+
+#[tokio::test]
+async fn management_applications_update_omits_unset_cap_fields() {
+    let server = MockServer::start().await;
+
+    // None on max_endpoints/show_event_types must be omitted entirely —
+    // exact body match proves only "name" is sent.
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/applications/app_abc",
+        ))
+        .and(body_json(json!({
+            "name": "Renamed"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "app_abc",
+            "externalId": null,
+            "name": "Renamed",
+            "metadata": {},
+            "maxEndpoints": 5,
+            "showEventTypes": true,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .applications()
+        .update(
+            "ws_123",
+            "app_abc",
+            UpdateApplicationOptions {
+                name: Some("Renamed".to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.max_endpoints, Some(5));
+}
+
+#[tokio::test]
+async fn management_applications_update_max_endpoints_set_value() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/applications/app_abc",
+        ))
+        .and(body_json(json!({
+            "maxEndpoints": 5,
+            "showEventTypes": false
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "app_abc",
+            "externalId": null,
+            "name": "My App",
+            "metadata": {},
+            "maxEndpoints": 5,
+            "showEventTypes": false,
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt
+        .applications()
+        .update(
+            "ws_123",
+            "app_abc",
+            UpdateApplicationOptions {
+                max_endpoints: Some(Some(5)),
+                show_event_types: Some(false),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(result.max_endpoints, Some(5));
+    assert!(!result.show_event_types);
+}
+
+#[tokio::test]
+async fn management_applications_response_defaults_show_event_types_when_absent() {
+    let server = MockServer::start().await;
+
+    // Older fixtures / responses without the new fields still deserialize:
+    // max_endpoints -> None, show_event_types -> true (server default).
+    Mock::given(method("GET"))
+        .and(path(
+            "/management/v1/workspaces/ws_123/applications/app_abc",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": "app_abc",
+            "externalId": null,
+            "name": "My App",
+            "metadata": {},
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mgmt = NahookManagement::builder("nhm_test123")
+        .base_url(server.uri())
+        .build()
+        .unwrap();
+
+    let result = mgmt.applications().get("ws_123", "app_abc").await.unwrap();
+
+    assert_eq!(result.max_endpoints, None);
+    assert!(result.show_event_types);
 }
 
 // ── Management: subscriptions ──

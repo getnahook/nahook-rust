@@ -122,8 +122,19 @@ pub struct Application {
     pub external_id: Option<String>,
     pub name: String,
     pub metadata: HashMap<String, String>,
+    /// Maximum endpoints this application may have (disabled endpoints
+    /// count). `None` means unlimited.
+    pub max_endpoints: Option<u32>,
+    /// Whether the Developer Portal exposes the event-type catalog to this
+    /// application.
+    #[serde(default = "default_true")]
+    pub show_event_types: bool,
     pub created_at: String,
     pub updated_at: String,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// A subscription resource.
@@ -230,6 +241,15 @@ pub struct CreateApplicationOptions {
     pub external_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, String>>,
+    /// Cap on how many endpoints this application may have (disabled
+    /// endpoints count). `0` makes the application read-only; `None`
+    /// (omitted) means unlimited.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_endpoints: Option<u32>,
+    /// Whether the Developer Portal exposes the event-type catalog.
+    /// `None` (omitted) defaults to `true` server-side.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_event_types: Option<bool>,
 }
 
 /// Options for updating an application.
@@ -240,6 +260,14 @@ pub struct UpdateApplicationOptions {
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, String>>,
+    /// Tri-state: `None` omits the field (cap unchanged), `Some(None)`
+    /// sends an explicit JSON null (clear the cap — unlimited), and
+    /// `Some(Some(n))` sets the cap to `n`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_endpoints: Option<Option<u32>>,
+    /// `None` omits the field (unchanged).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_event_types: Option<bool>,
 }
 
 /// Options for creating subscriptions (subscribe to one or more event types).

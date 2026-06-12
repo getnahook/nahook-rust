@@ -292,7 +292,7 @@ async fn test_applications_crud() {
             CreateApplicationOptions {
                 name: app_name.clone(),
                 external_id: Some(format!("ext-{}", suffix)),
-                metadata: None,
+                ..Default::default()
             },
         )
         .await
@@ -340,7 +340,7 @@ async fn test_applications_crud() {
             &created.id,
             UpdateApplicationOptions {
                 name: Some(updated_name.clone()),
-                metadata: None,
+                ..Default::default()
             },
         )
         .await
