@@ -7,7 +7,8 @@ use serde::Serialize;
 
 use crate::error::{ApiError, NahookError, NetworkError, TimeoutError};
 
-const SDK_VERSION: &str = "0.1.0";
+// Derived from Cargo.toml so the User-Agent can never drift from the released version.
+const SDK_VERSION: &str = env!("CARGO_PKG_VERSION");
 const BASE_DELAY_MS: u64 = 500;
 const MAX_DELAY_MS: u64 = 10_000;
 

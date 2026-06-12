@@ -9,9 +9,25 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ### Features
 
-- Application maxEndpoints + showEventTypes across all 8 SDKs
+- Per-application endpoint cap (`max_endpoints`) and Developer Portal
+  event-catalog toggle (`show_event_types`) on the applications resource,
+  with tri-state update semantics (`Some(Some(n))` to set, `Some(None)`
+  to clear the cap)
+
+### Changed
+
+- `Application` gained the public fields `max_endpoints` and
+  `show_event_types`; exhaustive struct literals must add them
 
 ## [0.1.2] - 2026-06-01
+
+### Features
+
+- Add Deliveries resource to the management client
+
+### Bug Fixes
+
+- Forward-compatible `Unknown` variant on `PayloadEnvelope`
 
 ### Documentation
 

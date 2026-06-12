@@ -2049,7 +2049,10 @@ async fn sends_correct_user_agent() {
 
     Mock::given(method("GET"))
         .and(path("/management/v1/workspaces/ws_123/endpoints"))
-        .and(header("user-agent", "nahook-rust/0.1.0"))
+        .and(header(
+            "user-agent",
+            format!("nahook-rust/{}", env!("CARGO_PKG_VERSION")).as_str(),
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
         .expect(1)
         .mount(&server)
